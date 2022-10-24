@@ -1,15 +1,19 @@
 #### Status
   - floats are not handled
+  - -r not implemented
+  - -R not implemented
+  - -s not implemented
+  - post processing
 
 ### NAME
     mips_sub – execute a MIPS subroutine
 
 ### SYNOPSIS
-    mips_subroutine [-S] [-s] [-d] [-t] [-v] name [ arg ... ]
+    mips_subroutine [-A] [-S] [-s] [-r reg_list] [-t] [-v] name [ arg ... ]
 
 
 ### DESCRIPTION
-    The file `name`.s that contains the subroutine `name` is excuted.
+    The file `name`.s that contains the subroutine `name` is executed.
 
     Each of the `arg` values are passed to the subroutine following
       the MIPS subroutine convention.  That is to say the first 4
@@ -21,23 +25,34 @@
       when possible. The argument is then passed as either an 
       integer, a double, or the address of the corresponding string.
     
+    After execution, the return value of the function is printed on 
+      stdout. It is presumed that this value is an integer.
+
     The following options are available. The associated output for
       options are placed on stdout after any output from the subroutine.
 
 
-      -A : pass the input arguements as an array of strings
-           - $a0: argc
-           - $a1: &argv
+      -A : pass the input arguments as an array 
+           - $a0: array.length
+           - $a1: &array
 
-      -S : pass all input arguments / elements as strings
+      -S : pass all input arguments as strings
+           - the default is to convert each argument when possible
+
+      -R type: specifies the return type from the subroutine, the type includes:
+           - integer: the value of $v0 (default)
+           - long:    the value of $v1/$v0
+           - float:   the value of $f0
+           - double:  the value of $f1
+           - string:  the address of $v0
 
       -s : summarize the execution of the program 
            e.g.  sub(1,2,3) returns $v0
 
       -r reg_list: dump the registers in the reg_list
         
-          a reg_list is a comma separted list of register numbers
-          or register names, a range may also be provided.
+          a reg_list is a comma separated list of registers numbers names,
+          a range may also be provided.
           Examples:
            * -r s0,s2,t1-t5,f2
            * -r 16,18,9-15,f2
@@ -47,7 +62,7 @@
 
 
  ### WARNINGS
-    It is expected thea the subroutine follows the MIPS convention
+    It is expected that the subroutine follows the MIPS convention
     regarding the restoration of registers.  As such, the following
     messages may appear on stderr.
 
@@ -56,11 +71,7 @@
    *  Warning the $sp register was not restored.
 
 ### EXPECTION and BUGS
-    It is expected that the subroutine performs an appropriate
-    return.  Otherwise, the options that produce output will
-    not occur. 
-
-    If an arg conforms to the syntax of a number, but is malformed,
+    If an argument conforms to the syntax of a number, but is malformed,
     the shell will report and error and stop. For example,
 
        $ mips_subroutine func 4#456

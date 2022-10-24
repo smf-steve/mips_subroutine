@@ -25,7 +25,7 @@ The mips_subroutine can also be used by more experience programs to perform unit
 ## Examples
 
   1. Subroutine Name: add4
-     1. Type Signature:  int x int x int x int -> int
+     1. Type Signature: int x int x int x int -> int
      1. Description:
         * The subroutine returns the sums of its first 4 arguments together
      1. Usage example:
@@ -35,7 +35,6 @@ The mips_subroutine can also be used by more experience programs to perform unit
         $
         ```
      1. MIPS Register Assignment:  $a0=1, $a1=2, $a2=3, $a3=4; $v0=10
-
      1. Comments: The command line arguments are automatically transformed to integers
 
   1. Subroutine Name: vector-add
@@ -44,11 +43,12 @@ The mips_subroutine can also be used by more experience programs to perform unit
         * The subroutine returns the a flattend string from the command-line arguments
      1. Usage example:
         ```
-        $ mips_subroutine -A flatten 1 2 3 4 5 6
-        this is 1 flatten   string
+        $ mips_subroutine -A vector-add 1 2 3 4 5 6
+        21
         $
         ```
-     1. Comments: The `-S` option specifies that all command-line arguments are passed as strings.
+     1. MIPS Register Assignment: $a0=A.length, $a1=\&A; $v0=21
+     1. Comments: The `-A` option specifies that all command-line arguments are passed as an array.
 
 
 1. Subroutine Name: flatten
@@ -57,8 +57,13 @@ The mips_subroutine can also be used by more experience programs to perform unit
         * The subroutine returns the a flattend string from the command-line arguments
      1. Usage example:
         ```
-        $ mips_subroutine -S flatten "this is " 1 "flatten   " string
+        $ mips_subroutine -R string -S flatten this is 1 "flatten   " string
         this is 1 flatten   string
         $
         ```
-     1. Comments: The `-A` option specifies that all command-line arguments are within an array
+     1. Comments: 
+        - The `-R` option specifies that the return type is a `string`
+        - The `-S` option specifies that all command-line arguments are passed as strings.
+   
+
+
