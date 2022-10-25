@@ -1,24 +1,58 @@
 #! /bin/bash
 
+# trap 0 cleanup
+
+###########################################################################
 # This is a small shell script to execute a MIPS subroutine.
+# The purpose of this execution is to perform unit testin.
 #
-# See mips_subroutine.md for a full description
-
-PROG_NAME=mips_subroutine
-
-PROG_HOME="~/Desktop/Classes/comp122/mars-mips/mips_subroutine"
-SYSTEM_FILES=$PROG_HOME/system
-MARS="java -jar $HOME/Desktop/Classes/comp122/mars-mips/mars/Mars4_5.jar"
-
-
 # Usage:  mips_sub [ option ... ] name [ arg ... ]
+#
+#         name: the name of the subroutine, located witin the file name.s
+#         arg:  an argument to be based to the subroutine
+#
+#         See mips_subroutine.md for a full description
+#
+###########################################################################
+# Steps to Execute
+#  1. Process CMD LINE
+#  1. Assemble file that contains the subroutine:  "name.s"
+#  1. Build the bootstraping file that calls the "name" subroutine
+#  1. Execute MARS to execute the bootstrapping program
+#  1. Post process the output from the bootstrapping program and MARS
+#
+#
+# ENVIRONMENT_VARS
+#    The following environment variables affect the execution of mips_subroutine:
+#
+#    MARS_JAR:  The location of the Mars jar file
+#    MARS:      The base command to invoke the Mars 
+###########################################################################
 
-SUB_NAME=""           # The name of the subroutine to be executed
-SUB_ARGS_TEXT=""       # A set of arrays to represent the text, type, and value
-SUB_ARGS_TYPES=""      # of the input arguements to the subroutine
+
+if [[ -z ${MARS_JAR} ]] ; then
+  MARS_JAR=$HOME/Desktop/Classes/comp122/mars-mips/mars/Mars4_5.jar
+fi
+if [[ -z ${MARS} ]] ; then
+  MARS="java -jar ${MARS_JAR}"
+fi
+
+
+###########################################################################
+# ENVIRONMENT VARABLE DESCRIPTONS
+
+SUB_NAME=""                # The name of the subroutine to be executed
+SUB_CALL=""                # The actual subroutine call, e.g., sub(1, 2, 3)
+
+SUB_ARGS_TEXT=""           # A set of arrays to represent the text, type, and value
+SUB_ARGS_TYPES=""          # of the input arguements to the subroutine
 SUB_ARGS_VALUES=""
 
-ARG_CONVENTION="base"
+SUB_RETURN_VALUE=""        # The value and associated type of the return value
+SUB_RETURN_TYPE="integer"  # integer (default value), double, string
+
+
+ARG_CONVENTION="base"  # The
   # ="base"   -- each arg is converted to its base type
   # ="string" -- each arg is passed as a string
 
@@ -36,17 +70,16 @@ SUMMARIZE="FALSE"
   # -- should this go to stdout, at the beginning?
   # -- will require processing of files.
 
+# The following are the registers that are dump from $MARS
+# The resulting registers emitted to stderr
 DUMP_X_REGISTERS="s0 s1 s2 s3 s4 s5 s6 s7 fp gp sp ra"
 DUMP_REG_LIST=""
 DUMP_T_REGS=""
 DUMP_V_REGS=""
-SPACE15="               "
 
-
-BOOT_FILE=".boot.s"
-OUTPUT_FILE=".boot.output"
-ASSEMBLER_FILE=".assembler.output"
-
+BOOT_FILE="boot.s"
+OUTPUT_FILE="boot.output"
+ASSEMBLER_FILE="assembler.output"
 cleanup () {
   #  call on a trap on exit
   rm -f ${BOOT_FILE}
@@ -54,16 +87,10 @@ cleanup () {
   rm -f ${ASSEMBLER_FILE}
 }
 
+SPACE15="               "
+SPACE7="       "
 
-
-
-# Steps to Execute
-#  1. Process CMD LINE
-#  1. Assemble ${SUB_NAME}.s
-#  1. Build the boot file
-#  1. Execute Mars with boot file
-#  1. Post process the dumped the registers, etc
-
+ ###########################################################################
 
 
 function sub_routine_call () {
@@ -96,13 +123,17 @@ function sub_routine_call () {
   echo ")"   
 }
 
+function subroutine_summary () 
+ 
+
+}
 
 
 function build_data_segment () {
   echo "${SPACE15} .data"
   echo ""
   echo "subroutine:     .asciiz \"${SUB_NAME}\""
-  echo "                # ${SUBROUTINE_CALL}"
+  echo "                # ${SUB_CALL}"
   echo "                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}"
   echo ""
   echo "${SPACE15} # Layout the command line arguments "
@@ -362,7 +393,7 @@ function post_process () {
 
 
   if [[ ${SUMMARIZE} == TRUE ]] ; then
-    echo "${SUBROUTINE_CALL} returned ${RETURN_VALUE}"
+    echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
     echo "${SPACE7} a0: "
     echo "${SPACE7} a0: "
     echo "${SPACE7} a0: "
@@ -409,7 +440,7 @@ while getopts ASsr:tv option ; do
               *) echo "invalid return type"
                  exit 1 ;;
             esac
-            RETURN_TYPE="${OPTARG}" ;;
+            SUB_RETURN_TYPE="${OPTARG}" ;;
         S)  ARG_CONVENTION="string" ;;
         s)  SUMMARIZE="TRUE" ;;
         r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
@@ -423,16 +454,15 @@ done
 DUMP_REGISTERS="${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS} ${DUMP_X_REGISTERS}"
 eval "SUB_NAME=\${${OPTIND}}"
 shift ${OPTIND}
-SUB_ARGS_TEXT=( "$@" )
-SUB_ARGS_TYPES=
-SUB_ARGS_VALUES=
 
-# Determine the type of each subroutine arguments,
-# and convert the string to the appropriate value
+SUB_ARGS_TEXT=( "$@" )
+
+
+# Determine the text, value, and type of each subroutine
+# arguments, and convert the string to the appropriate value
 for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
   _type="string"
   _value=${SUB_ARGS_TEXT[$i]}
-
 
   egrep -q "^[+-]?[0-9]+\.[0-9]+$" <<< ${SUB_ARGS_TEXT[$i]} &&
         _type="double"
@@ -457,8 +487,7 @@ for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
   SUB_ARGS_TYPES[${i}]=$_type
   SUB_ARGS_VALUES[${i}]=$_value
 done
-SUBROUTINE_CALL=$(sub_routine_call)
-
+SUB_CALL=$(sub_routine_call)
 
 
 
@@ -472,11 +501,13 @@ grep -q "${SUB_NAME}:" ${SUB_NAME}.s  ||
 
 
 
-#  1. Assemble ${SUB_NAME}.s
+#  1. Assemble ${SUB_NAME}.s, stop if there are errors
 ${MARS} nc a ae1 ${SUB_NAME}.s  > ${ASSEMBLER_FILE}
-[[ $? == 0 ]] || { sed "s|$PWD/||" ${ASSEMBLER_FILE} ; exit 1; }
+if [[ $? == 1 ]] ; then 
+   sed "s|$PWD/||" ${ASSEMBLER_FILE}
+   exit 1; 
+fi
 
-# Steps to Execute
 #  1. Built the boot file
 build_boot_file
 
