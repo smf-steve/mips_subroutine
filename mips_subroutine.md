@@ -16,7 +16,7 @@
     The file `name`.s that contains the subroutine `name` is executed.
 
     Each of the `arg` values are passed to the subroutine following
-      the MIPS subroutine convention.  That is to say the first 4
+      the MIPS subroutine convention. That is to say the first 4
       arguments are staged in $a0 - $a4 or $f12 and $f14, and 
       subsequent arguments are positioned on top of the stack. 
       The top of the stack holds the last argument.
@@ -47,7 +47,7 @@
            - string:  the address of $v0
 
       -s : summarize the execution of the program 
-           e.g.  sub(1,2,3) returns $v0
+           e.g., sub(1,2,3) returns $v0
 
       -r reg_list: dump the registers in the reg_list
         
@@ -62,13 +62,20 @@
 
 
  ### WARNINGS
-    It is expected that the subroutine follows the MIPS convention
-    regarding the restoration of registers.  As such, the following
-    messages may appear on stderr.
+     It is expected that the subroutine follows the MIPS convention
+     regarding the restoration of registers. As such, the following
+     messages may appear on stderr.
 
-   *  Warning one or more of the S registers were not restored.
-   *  Warning the $fp register was not restored.
-   *  Warning the $sp register was not restored.
+   * Warning: One or more of the S registers were not restored.
+   * Warning: The $fp register was not restored.
+   * Warning: The $sp register was not restored.
+   * Warning: Subroutine did not return properly"
+
+### ENVIRONMENT_VARS
+    The following environment variables affect the execution of mips_subroutine:
+
+    MARS_JAR:  The location of the Mars jar file
+    MARS:      The base command to invoke the Mars
 
 ### EXPECTION and BUGS
     If an argument conforms to the syntax of a number, but is malformed,
