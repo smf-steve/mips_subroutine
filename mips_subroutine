@@ -10,16 +10,13 @@ PROG_HOME="~/Desktop/Classes/comp122/mars-mips/mips_subroutine"
 SYSTEM_FILES=$PROG_HOME/system
 MARS="java -jar $HOME/Desktop/Classes/comp122/mars-mips/mars/Mars4_5.jar"
 
-BOOT_FILE=".boot.s"
-OUTPUT_FILE=".boot.output"
-ASSEMBLER_FILE=".assembler.output"
 
 # Usage:  mips_sub [ option ... ] name [ arg ... ]
 
-SUB_NAME=""
-  # The name of the subroutine to be executed
-SUB_ARGS=""
-  # An array of the arguments to be passed to SUB_NAME
+SUB_NAME=""           # The name of the subroutine to be executed
+SUB_ARGS_TEXT=""       # A set of arrays to represent the text, type, and value
+SUB_ARGS_TYPES=""      # of the input arguements to the subroutine
+SUB_ARGS_VALUES=""
 
 ARG_CONVENTION="base"
   # ="base"   -- each arg is converted to its base type
@@ -39,10 +36,26 @@ SUMMARIZE="FALSE"
   # -- should this go to stdout, at the beginning?
   # -- will require processing of files.
 
+DUMP_X_REGISTERS="s0 s1 s2 s3 s4 s5 s6 s7 fp gp sp ra"
 DUMP_REG_LIST=""
 DUMP_T_REGS=""
 DUMP_V_REGS=""
 SPACE15="               "
+
+
+BOOT_FILE=".boot.s"
+OUTPUT_FILE=".boot.output"
+ASSEMBLER_FILE=".assembler.output"
+
+cleanup () {
+  #  call on a trap on exit
+  rm -f ${BOOT_FILE}
+  rm -f ${OUTPUT_FILE}
+  rm -f ${ASSEMBLER_FILE}
+}
+
+
+
 
 # Steps to Execute
 #  1. Process CMD LINE
@@ -52,123 +65,59 @@ SPACE15="               "
 #  1. Post process the dumped the registers, etc
 
 
-#### Process CMD LINE
-while getopts ASsr:tv option ; do
-    case "${option}" in
-        A)  ARG_STRUCTURE="array" ;;
-        S)  ARG_CONVENTION="string" ;;
-        s)  SUMMARIZE="TRUE" ;;
-        r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
-        t)  DUMP_T_REGS="t0 t1 t2 t3 t4 t5 t6 t7 t8 t9" ;;
-        v)  DUMP_V_REGS="v0 v1" ;;
+
+function sub_routine_call () {
+  echo -n "${SUB_NAME}("
+  for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
+    _text=${SUB_ARGS_TEXT[$i]}
+    _type=${SUB_ARGS_TYPES[$i]}
+    _value=${SUB_ARGS_VALUES[$i]}
+    if [[ ${ARG_CONVENTION} != "base" ]] ; then
+      _type="string"
+    fi
+  
+    case ${_type} in 
+      double)
+         echo -n "$_value"
+         ;;
+  
+      integer)
+         echo -n "$_value"
+         ;;
+  
+      string)
+         echo -n "\"$_text\""
+         ;;
     esac
-done
-
-
-# Process the Command line arguments
-eval "SUB_NAME=\${${OPTIND}}"
-shift ${OPTIND}
-SUB_ARGS=( "$@" )
-SUB_ARG_TYPES=
-SUB_ARG_VALUES=
-
-# Determine the type of each subroutine arguments,
-# and convert the string to the appropriate value
-for ((i=0; i < ${#SUB_ARGS[@]}; i++)) ; do
-  _type="string"
-  _value=${SUB_ARGS[$i]}
-
-
-  egrep -q "^[+-]?[0-9]+\.[0-9]+$" <<< ${SUB_ARGS[$i]} &&
-        _type="double"
-
-  # Handles based numbers
-  egrep -q "^[+-]?[2-9][0-9]*#[0-9]+$" <<< ${SUB_ARGS[$i]} && {
-         _type="integer" 
-         _value=$(( ${SUB_ARGS[$i]} ))
-  }
-
-  # Handles octal and decimal.
-  egrep -q "^[+-]?[0-9]+$" <<< ${SUB_ARGS[$i]} && {
-         _type="integer" 
-         _value=$(( ${SUB_ARGS[$i]} ))
-  }
-  # Handles hexadecimal
-  egrep -q "^[+-]?0[xX]?[0-9A-Fa-f]+$" <<< ${SUB_ARGS[$i]} && {
-         _type="integer" 
-         _value=$(( ${SUB_ARGS[$i]} ))
-  }
-
-  SUB_ARG_TYPES[${i}]=$_type
-  SUB_ARG_VALUES[${i}]=$_value
-done
-
-
-# Command line related error checking
-[ -f ${SUB_NAME}.s ] || 
-     { echo "File ${SUB_NAME}.s does not exist." ; exit 1 ; }
-[ $SUB_NAME != "main" ] || 
-     { echo "File name cannot be \"main.s\"." ; exit 1; }
-grep -q "${SUB_NAME}:" ${SUB_NAME}.s  || 
-     { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
-
-
-cleanup () {
-  #  call on a trap on exit
-  rm -f ${BOOT_FILE}
-  rm -f ${OUTPUT_FILE}
-  rm -f ${ASSEMBLER_FILE}
+    if (( i != ${#SUB_ARGS_TEXT[@]} -1 )) ; then
+      echo -n ", "
+    fi
+  done
+  echo ")"   
 }
+
+
 
 function build_data_segment () {
   echo "${SPACE15} .data"
   echo ""
   echo "subroutine:     .asciiz \"${SUB_NAME}\""
-  echo -n "                .asciiz \"${SUB_NAME}("
-  for ((i=0; i < ${#SUB_ARGS[@]}; i++)) ; do
-    _text=${SUB_ARGS[$i]}
-    _type=${SUB_ARG_TYPES[$i]}
-    _value=${SUB_ARG_VALUES[$i]}
-    if [[ ${ARG_CONVENTION} != "base" ]] ; then
-      _type="string"
-    fi
-
-    case ${_type} in 
-      double)
-         echo -n "$_value"
-         ;;
-
-      integer)
-         echo -n "$_value"
-         ;;
-
-     string)
-        echo -n "\"$_text\""
-        ;;
-    esac
-    if (( i != ${#SUB_ARGS[@]} -1 )) ; then
-      echo -n ", "
-    fi
-  done
-  echo ")"   
+  echo "                # ${SUBROUTINE_CALL}"
   echo "                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}"
   echo ""
-  echo "saved_sp:       .word"
-  echo
   echo "${SPACE15} # Layout the command line arguments "
-  echo ""
-  echo "argc:           .word  ${#SUB_ARGS[@]}"
+  echo "argc:           .word  ${#SUB_ARGS_TEXT[@]}"
   echo -n "argv:           .word "
-  for ((i=0; i < ${#SUB_ARGS[@]} -1; i++)) ; do
+  for ((i=0; i < ${#SUB_ARGS_TEXT[@]} -1; i++)) ; do
       echo -n "arg_${i}, "
   done
   echo "arg_${i} "
   echo ""
 
-  for ((i=0; i < ${#SUB_ARGS[@]}; i++)) ; do
-    _text=${SUB_ARGS[$i]}
-    _type=${SUB_ARG_TYPES[$i]}
-    _value=${SUB_ARG_VALUES[$i]}
+  for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
+    _text=${SUB_ARGS_TEXT[$i]}
+    _type=${SUB_ARGS_TYPES[$i]}
+    _value=${SUB_ARGS_VALUES[$i]}
 
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
       _type="string"
@@ -183,12 +132,15 @@ function build_data_segment () {
          echo "arg_${i}:          .word $_value # $_text"
          ;;
 
-     string)
+      string)
         echo "arg_${i}:          .asciiz \"$_text\""
         ;;
     esac
        
   done
+  echo "saved_sp:       .word"
+  echo
+
 }
 
 function marshal_in_registers () {
@@ -199,19 +151,19 @@ function marshal_in_registers () {
 
 
   if [[ ${ARG_STRUCTURE} == "array" ]] ; then
-    echo "${SPACE15} li \$a0, ${#SUB_ARGS[@]}"
+    echo "${SPACE15} li \$a0, ${#SUB_ARGS_TEXT[@]}"
     echo "${SPACE15} la \$a1, argv"
   else
     # ${ARG_STRUCTURE} == "flat"
 
-    num_a_regs=${#SUB_ARGS[@]}
-    if (( ${#SUB_ARGS[@]} > 4)) ; then
+    num_a_regs=${#SUB_ARGS_TEXT[@]}
+    if (( ${#SUB_ARGS_TEXT[@]} > 4)) ; then
       num_a_regs=4
     fi
-    for (( i=0; i <= ${num_a_regs}; i++ )) ; do
-      _text=${SUB_ARGS[$i]}
-      _type=${SUB_ARG_TYPES[$i]}
-      _value=${SUB_ARG_VALUES[$i]}
+    for (( i=0; i < ${num_a_regs}; i++ )) ; do
+      _text=${SUB_ARGS_TEXT[$i]}
+      _type=${SUB_ARGS_TYPES[$i]}
+      _value=${SUB_ARGS_VALUES[$i]}
   
       if [[ ${ARG_CONVENTION} != "base" ]] ; then
         _type="string"
@@ -219,13 +171,13 @@ function marshal_in_registers () {
       case ${_type} in 
         double)
            if [[ $i == 1 ]] ; then
-             echo "${SPACE15} l.d f12, arg_${i}"
+             echo "${SPACE15} l.d \$f12, arg_${i} # $_text"
            fi
            if [[ $i == 2 ]] ; then
-             echo "${SPACE15} l.d f14, arg_${i}"
+             echo "${SPACE15} l.d \$f14, arg_${i} # $_text"
            fi
            if [[ $i > 2 ]] ; then
-             break;
+             break 2;  # break the for loop
            fi
            ;;
   
@@ -240,37 +192,38 @@ function marshal_in_registers () {
     done
   fi
   echo ""
+  return $i
 }
 
 function marshal_on_stack () {
-  i = $1
+  i="$1"
 
   echo ""
   echo "${SPACE15} # Marshal the remaining input arguments onto the stack"
 
-  for (( ; i < ${#SUB_ARGS[@]} ; i++ )) ; do
-    _text=${SUB_ARGS[$i]}
-    _type=${SUB_ARG_TYPES[$i]}
-    _value=${SUB_ARG_VALUES[$i]}
+  for (( ; i < ${#SUB_ARGS_TEXT[@]} ; i++ )) ; do
+    _text=${SUB_ARGS_TEXT[$i]}
+    _type=${SUB_ARGS_TYPES[$i]}
+    _value=${SUB_ARGS_VALUES[$i]}
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
       _type="string"
     fi   
     case ${_type} in 
       float)
-         echo "${SPACE15} addiu $sp, $sp, -8 # Push a double"
          echo "${SPACE15} l.d \$f0, arg_${i}"
-         echo "${SPACE15} s.d \$$f0, 0(\$sp)"
+         echo "${SPACE15} addiu \$sp, \$sp, -8 # Push a double"
+         echo "${SPACE15} s.d \$f0, 0(\$sp)"
          echo ""
          ;;
       integer)
          echo "${SPACE15} li \$t1, $_value # $_text"
-         echo "${SPACE15} addiu \$sp, $sp, -4 # Push a word"
+         echo "${SPACE15} addiu \$sp, \$sp, -4 # Push a word"
          echo "${SPACE15} sw \$t1, 0(\$sp)"
          echo ""
          ;;
       string)
-         echo "${SPACE15} addiu $sp, $sp, -w" # Push a word
          echo "${SPACE15} la \$t1, arg_${i}\" #   $_text"
+         echo "${SPACE15} addiu \$sp, \$sp, -4" # Push a word
          echo "${SPACE15} sw \$t1, 0(\$sp)"
          echo ""
          ;;
@@ -292,16 +245,20 @@ function set_registers () {
     done
 
     echo ""
-    echo "${SPACE15} # Save the FP & SP registers"
+    echo "${SPACE15} # Set the FP and GP registers"
+    echo "${SPACE15} li \$fp, 0xDeadBeef"
+    echo "${SPACE15} li \$gp, 0xDeadBeef"
+
+    echo ""
+    echo "${SPACE15} # Save the SP registers"
     echo "${SPACE15} sw \$sp, saved_sp"
-    echo "${SPACE15} sw \$fp, saved_fp"
   }
 
 function build_boot_file () {
   ## Steps to build the boot file.
   #
   #  1. Build the Data Segment 
-  #     1. Place SUB_ARGS in memory
+  #     1. Place SUB_ARGS_TEXT in memory
   #  1. Build the Text Segment
   #     1. Set values in the registers
   #        - random values into the T registers
@@ -324,7 +281,8 @@ EOF
   set_registers
   marshal_in_registers
   i="$?"
-  if [[ i < ${#SUB_ARGS[@]} ]] ; then
+
+  if (( i <= ${#SUB_ARGS_TEXT[@]} )) ; then
     marshal_on_stack $i
   fi
 
@@ -333,25 +291,36 @@ EOF
   #     1. Call the "SUB_NAME"  
   #     1. Exit the value of $v0
   cat <<-EOF
-  
                 # Make a call to the user's subroutine
                 jal ${SUB_NAME}
-              
-                # Check the SP values
+
+
+                # If we made it here, then all registers that 
+                # should have been preserved over the subroutine
+                # boundary should be set to 0xDeadBeef;   
+                # except $ra and $sp.
+
+                # If we are here than set $ra to 0xDead Beef
+                li \$ra, 0xDeadBeef
+
+                # If the SP value is what it was prior to the
+                #   "jal ${SUB_NAME}"
+                # then set it to be 0xDeadBeef
                 lw \$at, saved_sp
-                beq \$at, \$sp, skip
+                bne \$at, \$sp, skip
                   li \$sp, 0xDeadBeef
         skip:   nop
 
-                # Set RA to be well known.
-                li \$ra, 0xDeadBeef
+EOF
 
-                # At this point all the registers that should
-                # have been preserved over the bounary have
-                # been set to 0xDeadBeef.
+  echo "${SPACE15} # Print out the value:  assume its an integer"
+  echo "${SPACE15} move \$a0, \$v0"
+  echo "${SPACE15} li \$v0, 1"
+  echo "${SPACE15} syscall"
 
+   cat <<-EOF
                 # Exit 0
-                move \$a0, \$v0
+
                 li \$v0, 17
                 syscall
 
@@ -361,10 +330,146 @@ EOF
 
 
 function post_process () {
+  # The pos_process only occures if.
+  #   1. the user request more debugging information
+  #   1. the system determines there are errors
 
-  cat ${OUTPUT_FILE}
+  # Break the output into the following section
+  # 1. user output
+  # 1. user requested registers
+  # 1. system requested registers
+  
+  num_lines=$(wc -l < ${OUTPUT_FILE})
+  num_system_regs=$(awk '{print NF}' <<< ${DUMP_X_REGISTERS})
+  num_regs=$(awk '{print NF}' <<< ${DUMP_REGISTERS})
+  num_user_lines=$(( num_lines - num_regs ))
 
-}
+  if (( num_user_lines > 0 )) ; then
+    head -n ${num_user_lines} ${OUTPUT_FILE}
+  fi 
+  # User asked for these so provide them on stdout
+
+  if (( num_regs > num_system_regs )) ; then 
+    # If I have more user requested registers
+    echo
+    # Provide the revised output of the registers
+    tail -n $num_regs  < ${OUTPUT_FILE} \
+      | head -n $(( num_regs - num_system_regs )) \
+      | while read _name _hex _value ; do
+          printf "%s: %10d 0x%08x\n" $_name $_hex $_hex
+        done 
+  fi
+
+
+  if [[ ${SUMMARIZE} == TRUE ]] ; then
+    echo "${SUBROUTINE_CALL} returned ${RETURN_VALUE}"
+    echo "${SPACE7} a0: "
+    echo "${SPACE7} a0: "
+    echo "${SPACE7} a0: "
+    echo "${SPACE7} stack: "
+  fi
+
+  # This following information goes to stderr
+  {
+  # Generate any warnings
+  # 1. create a file with just the X register without a value of 0xdeadbeaf
+    tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > X.set_registers
+
+  echo 
+  # 1. if "s*" is present, "Warning: One or more of the S registers were not restored."
+  grep -q "^\$ra" X.set_registers     && echo "Warning: Subroutine did not return properly."
+  grep -q "^\$sp" X.set_registers     && echo "Warning: The \$sp register was not restored."
+  grep -q "^\$fp" X.set_registers     && echo "Warning: The \$fp register was not restored."
+  grep -q "^\$gp" X.set_registers     && echo "Warning: The \$gp register was not restored."
+  grep -q "^\$s[0-7]" X.set_registers && {
+    echo "Warning: One or more of the S registers were not restored."
+    grep "^\$s[0-7]" X.set_registers |
+      while read _name _hex _value ; do
+        printf "\t%s: %10d 0x%08x\n" $_name $_hex $_hex
+      done 
+  }
+} 
+} >&2
+
+#################################################################################
+# MAIN Program
+
+
+#### Process CMD LINE
+while getopts ASsr:tv option ; do
+    case "${option}" in
+        A)  ARG_STRUCTURE="array" ;;
+        R)  case ${OPTARG} in
+              integer)
+                ;;
+              double)
+                ;;
+              string)
+                ;;
+              *) echo "invalid return type"
+                 exit 1 ;;
+            esac
+            RETURN_TYPE="${OPTARG}" ;;
+        S)  ARG_CONVENTION="string" ;;
+        s)  SUMMARIZE="TRUE" ;;
+        r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
+        t)  DUMP_T_REGS="t0 t1 t2 t3 t4 t5 t6 t7 t8 t9" ;;
+        v)  DUMP_V_REGS="v0 v1" ;;
+    esac
+done
+
+
+# Process the Command line arguments
+DUMP_REGISTERS="${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS} ${DUMP_X_REGISTERS}"
+eval "SUB_NAME=\${${OPTIND}}"
+shift ${OPTIND}
+SUB_ARGS_TEXT=( "$@" )
+SUB_ARGS_TYPES=
+SUB_ARGS_VALUES=
+
+# Determine the type of each subroutine arguments,
+# and convert the string to the appropriate value
+for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
+  _type="string"
+  _value=${SUB_ARGS_TEXT[$i]}
+
+
+  egrep -q "^[+-]?[0-9]+\.[0-9]+$" <<< ${SUB_ARGS_TEXT[$i]} &&
+        _type="double"
+
+  # Handles based numbers
+  egrep -q "^[+-]?[2-9][0-9]*#[0-9]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
+         _type="integer" 
+         _value=$(( ${SUB_ARGS_TEXT[$i]} ))
+  }
+
+  # Handles octal and decimal.
+  egrep -q "^[+-]?[0-9]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
+         _type="integer" 
+         _value=$(( ${SUB_ARGS_TEXT[$i]} ))
+  }
+  # Handles hexadecimal
+  egrep -q "^[+-]?0[xX]?[0-9A-Fa-f]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
+         _type="integer" 
+         _value=$(( ${SUB_ARGS_TEXT[$i]} ))
+  }
+
+  SUB_ARGS_TYPES[${i}]=$_type
+  SUB_ARGS_VALUES[${i}]=$_value
+done
+SUBROUTINE_CALL=$(sub_routine_call)
+
+
+
+
+# Command line related error checking
+[ -f ${SUB_NAME}.s ] || 
+     { echo "File ${SUB_NAME}.s does not exist." ; exit 1 ; }
+[ $SUB_NAME != "main" ] || 
+     { echo "File name cannot be \"main.s\"." ; exit 1; }
+grep -q "${SUB_NAME}:" ${SUB_NAME}.s  || 
+     { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
+
 
 
 #  1. Assemble ${SUB_NAME}.s
@@ -374,142 +479,11 @@ ${MARS} nc a ae1 ${SUB_NAME}.s  > ${ASSEMBLER_FILE}
 # Steps to Execute
 #  1. Built the boot file
 build_boot_file
-cat ${BOOT_FILE}
-exit
 
 #  1. Execute Mars with boot file
-mars nc sm se1 ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS} \
+${MARS} nc sm se1 ${DUMP_REGISTERS} \
      ${BOOT_FILE} ${SUB_NAME}.s > ${OUTPUT_FILE} 2>/dev/null
 
 # 1. Post process output
 post_process
 
-
-
-## 
-## function print_reg() {
-##   t=${1}
-##   i=${2}
-## 
-## cat <<EOF
-##         # ${t}${i}: value
-##         print_ci '${t}'
-##         print_ci '${i}'
-##         print_ci ':'
-##         print_ci ' '
-##         print_d \$${t}${i}
-##         print_ci '\\n'
-## 
-## EOF
-## }
-## 
-## function build_boot_file() {
-##   entry=$1
-##   shift
-##   argc=$#
-##   num_a_regs=$#
-## 
-##   entry_str=$(
-##     echo -n "calling $entry(" 
-##     { for ((i=1; i < argc; i++ )) {
-##       eval "value=\${${i}}"
-##       echo -n "$value, "
-##     }
-##     eval "value=\${${argc}}"
-##     echo "$value)\n" 
-##    }
-##    )
-## 
-##   cat <<EOF
-##         .data
-## _entry_str: .asciiz "$entry_str"       
-##         .text
-##         .include "${SYSTEM_FILES}/syscalls.s"
-##         .include "${SYSTEM_FILES}/stack.s"
-##   
-## _boot:   nop
-## 
-##          # Marshal the Input Arguements
-##          # Load the \"a\" registers
-## EOF
-## 
-##   if ((num_a_regs > 4)) ; then
-##    num_a_regs=4
-##   fi
-##   for (( i=0,j=1 ; i < ${num_a_regs} ; i++,j++ )) ; do
-##     eval "value=\${${j}}"
-##     printf "\tli \$a${i}, ${value}\n"
-##   done
-##   echo
-## 
-## cat <<EOF
-##           # Push remaining args onto the stack
-## EOF
-## 
-##   for ((i=4; i <= argc; i++)) {
-##     eval "value=\${${i}}"
-##     cat <<EOF
-##           li \$at, ${value}
-##           Push \$at
-## EOF
-##   }
-## 
-##   cat <<EOF
-##          # Call the subroutine
-##          la \$at, _entry_str
-##          print_s \$at
-##             jal ${entry}
-##          la \$at, _return_str
-##          print_s \$at
-##          print_d \$v0
-##          print_ci '\n'
-## EOF
-## 
-## 
-##   printf "\t# Dump the \"v0\" register\n"
-##   print_reg v 0
-##   echo
-## 
-##   printf "\t# Dump the \"t\" registers\n"
-##   for (( i=0 ; i <= 3 ; i++ )) ; do
-##      print_reg t $i
-##   done
-## 
-##   printf "\t# Exit the program\n"
-##   printf "\texit \$v0\n"
-##   echo
-##  
-##   printf "\t.include \"${entry}.s\"\n"
-##   echo
-## 
-## } 
-## 
-## 
-## build_boot_file "$@" >boot.s
-## 
-## entry=$1
-## shift
-## argc=$#
-## num_a_regs=$#
-## 
-## # Assemble
-## echo -n "Assembling ${entry}.s: ..."
-## 
-## mars me a ae1 boot.s entry.s  #  2> $ERROR_LOG
-## if [ $? -ne 0 ] ; then
-##   echo Okay
-## else
-##   echo Errors
-##   echo
-##   cat $ERROR_LOG
-##   rm -f $ERROR_LOG
-##   #exit 0 
-## fi
-## 
-## # Executing
-## echo -n "Executing subroutine $entry("
-## 
-##  
-## echo mars boot.s
-## 
-##  ## 
