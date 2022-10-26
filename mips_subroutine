@@ -90,7 +90,7 @@ cleanup () {
 SPACE15="               "
 SPACE7="       "
 
- ###########################################################################
+###########################################################################
 
 
 function sub_routine_call () {
@@ -121,11 +121,6 @@ function sub_routine_call () {
     fi
   done
   echo ")"   
-}
-
-function subroutine_summary () 
- 
-
 }
 
 
@@ -175,15 +170,24 @@ function build_data_segment () {
 }
 
 function marshal_in_registers () {
+  # $1 can either be "code", "documentation"
+  _for="$1"
   # Marshal the input args
 
-  echo ""
-  echo "${SPACE15} # Marshal the input arguments into the registers"
+  if [[ $_for = "code" ]] ; then 
+    echo ""
+    echo "${SPACE15} # Marshal the input arguments into the registers"
+  fi
 
 
   if [[ ${ARG_STRUCTURE} == "array" ]] ; then
-    echo "${SPACE15} li \$a0, ${#SUB_ARGS_TEXT[@]}"
-    echo "${SPACE15} la \$a1, argv"
+    if [[ $_for = "code" ]] ; then 
+      echo "${SPACE15} li \$a0, ${#SUB_ARGS_TEXT[@]}"
+      echo "${SPACE15} la \$a1, argv"
+    else
+      echo "${SPACE7} \$a0: ${#SUB_ARGS_TEXT[@]}"
+      echo "${SPACE7} \$a1: &argv"
+    fi
   else
     # ${ARG_STRUCTURE} == "flat"
 
@@ -201,36 +205,54 @@ function marshal_in_registers () {
       fi   
       case ${_type} in 
         double)
-           if [[ $i == 1 ]] ; then
-             echo "${SPACE15} l.d \$f12, arg_${i} # $_text"
-           fi
-           if [[ $i == 2 ]] ; then
-             echo "${SPACE15} l.d \$f14, arg_${i} # $_text"
-           fi
-           if [[ $i > 2 ]] ; then
-             break 2;  # break the for loop
-           fi
-           ;;
+          if [[ $i == 1 ]] ; then
+            if [[ $_for = "code" ]] ; then 
+              echo "${SPACE15} l.d \$f12, arg_${i}${SPACE15} # $_text"
+            else
+              echo "${SPACE7} f12: arg_${i}${SPACE7} # $_text" 
+            fi
+          fi
+          if [[ $i == 2 ]] ; then
+            if [[ $_for = "code" ]] ; then 
+              echo "${SPACE15} l.d \$f14, arg_${i}${SPACE15} # $_text"
+            else
+              echo "${SPACE7} f14: arg_${i}${SPACE7} # $_text"
+            fi
+          fi
+          if [[ $i > 2 ]] ; then
+            break 2;  # break the for loop
+          fi
+          ;;
   
         integer)
-           echo "${SPACE15} li \$a${i}, $_value${SPACE15} # $_text"
-           ;;
+          if [[ $_for = "code" ]] ; then 
+            echo "${SPACE15} li \$a${i}, $_value${SPACE15} # $_text"
+          else
+            echo "${SPACE7} a${i}: $_value${SPACE7} # $_text"
+          fi
+          ;;
   
         string)
-           echo "${SPACE15} la \$a${i}, arg_${i}${SPACE15} # \"$_text\""
-           ;;
+          if [[ $_for = "code" ]] ; then 
+            echo "${SPACE15} la \$a${i}, arg_${i}${SPACE15} # \"$_text\""
+          else
+            echo "${SPACE7} a${i}: &arg_${i}${SPACE7} # \"$_text\""
+          fi
+          ;;
       esac
     done
   fi
-  echo ""
   return $i
 }
 
 function marshal_on_stack () {
-  i="$1"
+  _for="$1"
+  i="$2"
 
-  echo ""
-  echo "${SPACE15} # Marshal the remaining input arguments onto the stack"
+  if [[ $_for = "code" ]] ; then 
+    echo ""
+    echo "${SPACE15} # Marshal the remaining input arguments onto the stack"
+  fi
 
   for (( ; i < ${#SUB_ARGS_TEXT[@]} ; i++ )) ; do
     _text=${SUB_ARGS_TEXT[$i]}
@@ -241,26 +263,39 @@ function marshal_on_stack () {
     fi   
     case ${_type} in 
       float)
-         echo "${SPACE15} l.d \$f0, arg_${i}"
-         echo "${SPACE15} addiu \$sp, \$sp, -8 # Push a double"
-         echo "${SPACE15} s.d \$f0, 0(\$sp)"
-         echo ""
-         ;;
+        if [[ $_for = "code" ]] ; then 
+          echo "${SPACE15} l.d \$f0, arg_${i}"
+          echo "${SPACE15} addiu \$sp, \$sp, -8 # Push a double"
+          echo "${SPACE15} s.d \$f0, 0(\$sp)"
+          echo ""
+        else
+          echo "${SPACE7} stack: $_value${SPACE7} # $_text"
+        fi
+        ;;
       integer)
-         echo "${SPACE15} li \$t1, $_value # $_text"
-         echo "${SPACE15} addiu \$sp, \$sp, -4 # Push a word"
-         echo "${SPACE15} sw \$t1, 0(\$sp)"
-         echo ""
-         ;;
+        if [[ $_for = "code" ]] ; then 
+          echo "${SPACE15} li \$t1, $_value # $_text"
+          echo "${SPACE15} addiu \$sp, \$sp, -4 # Push a word"
+          echo "${SPACE15} sw \$t1, 0(\$sp)"
+          echo ""
+        else
+          echo "${SPACE7} stack: $_value${SPACE7} # $_text"
+        fi
+        ;;
       string)
-         echo "${SPACE15} la \$t1, arg_${i}\" #   $_text"
-         echo "${SPACE15} addiu \$sp, \$sp, -4" # Push a word
-         echo "${SPACE15} sw \$t1, 0(\$sp)"
-         echo ""
-         ;;
+        if [[ $_for = "code" ]] ; then 
+          echo "${SPACE15} la \$t1, arg_${i}\" #   $_text"
+          echo "${SPACE15} addiu \$sp, \$sp, -4" # Push a word
+          echo "${SPACE15} sw \$t1, 0(\$sp)"
+          echo ""
+        else
+          echo "${SPACE7} stack: &arg_${i}${SPACE7} # $_text"
+        fi
+        ;;
     esac
   done
 }
+
 
 function set_registers () {
   # Set values in the registers
@@ -310,11 +345,11 @@ main:           nop
 EOF
 
   set_registers
-  marshal_in_registers
+  marshal_in_registers "code"
   i="$?"
 
   if (( i <= ${#SUB_ARGS_TEXT[@]} )) ; then
-    marshal_on_stack $i
+    marshal_on_stack "code" $i
   fi
 
     
@@ -344,7 +379,7 @@ EOF
 
 EOF
 
-  echo "${SPACE15} # Print out the value:  assume its an integer"
+  echo "${SPACE15} # Print out the value: assume its an integer"
   echo "${SPACE15} move \$a0, \$v0"
   echo "${SPACE15} li \$v0, 1"
   echo "${SPACE15} syscall"
@@ -360,6 +395,7 @@ EOF
 } > ${BOOT_FILE}
 
 
+###########################################################################
 function post_process () {
   # The pos_process only occures if.
   #   1. the user request more debugging information
@@ -391,14 +427,7 @@ function post_process () {
         done 
   fi
 
-
-  if [[ ${SUMMARIZE} == TRUE ]] ; then
-    echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
-    echo "${SPACE7} a0: "
-    echo "${SPACE7} a0: "
-    echo "${SPACE7} a0: "
-    echo "${SPACE7} stack: "
-  fi
+  subroutine_summary
 
   # This following information goes to stderr
   {
@@ -421,6 +450,18 @@ function post_process () {
   }
 } 
 } >&2
+
+
+function subroutine_summary () {
+ 
+  if [[ ${SUMMARIZE} == TRUE ]] ; then
+    echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
+    marshal_in_registers "documenation"
+    i=$?
+    marshal_on_stack "documenation" $i
+  fi
+
+}
 
 #################################################################################
 # MAIN Program
