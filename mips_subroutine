@@ -80,11 +80,13 @@ DUMP_V_REGS=""
 BOOT_FILE="boot.s"
 OUTPUT_FILE="boot.output"
 ASSEMBLER_FILE="assembler.output"
+ERROR_FILE="boot.errors"
 cleanup () {
   #  call on a trap on exit
   rm -f ${BOOT_FILE}
   rm -f ${OUTPUT_FILE}
   rm -f ${ASSEMBLER_FILE}
+  rm -f ${ERROR_FILE}
 }
 
 SPACE15="               "
@@ -132,6 +134,7 @@ function build_data_segment () {
   echo "                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}"
   echo ""
   echo "${SPACE15} # Layout the command line arguments "
+  echo "                .align 2"
   echo "argc:           .word  ${#SUB_ARGS_TEXT[@]}"
   echo -n "argv:           .word "
   for ((i=0; i < ${#SUB_ARGS_TEXT[@]} -1; i++)) ; do
@@ -151,10 +154,12 @@ function build_data_segment () {
 
     case ${_type} in 
       double)
+         echo "                   .align 3"
          echo "arg_${i}:          .double $_value"
          ;;
 
       integer)
+         echo "                   .align 2"
          echo "arg_${i}:          .word $_value # $_text"
          ;;
 
@@ -164,6 +169,7 @@ function build_data_segment () {
     esac
        
   done
+  echo "                .align 2"
   echo "saved_sp:       .word"
   echo
 
@@ -209,14 +215,14 @@ function marshal_in_registers () {
             if [[ $_for = "code" ]] ; then 
               echo "${SPACE15} l.d \$f12, arg_${i}${SPACE15} # $_text"
             else
-              echo "${SPACE7} f12: arg_${i}${SPACE7} # $_text" 
+              echo "${SPACE7} f12:    arg_${i}${SPACE7} # $_text" 
             fi
           fi
           if [[ $i == 2 ]] ; then
             if [[ $_for = "code" ]] ; then 
               echo "${SPACE15} l.d \$f14, arg_${i}${SPACE15} # $_text"
             else
-              echo "${SPACE7} f14: arg_${i}${SPACE7} # $_text"
+              echo "${SPACE7} f14:    arg_${i}${SPACE7} # $_text"
             fi
           fi
           if [[ $i > 2 ]] ; then
@@ -228,7 +234,7 @@ function marshal_in_registers () {
           if [[ $_for = "code" ]] ; then 
             echo "${SPACE15} li \$a${i}, $_value${SPACE15} # $_text"
           else
-            echo "${SPACE7} a${i}: $_value${SPACE7} # $_text"
+            echo "${SPACE7} a${i}:    $_value${SPACE7} # $_text"
           fi
           ;;
   
@@ -236,7 +242,7 @@ function marshal_in_registers () {
           if [[ $_for = "code" ]] ; then 
             echo "${SPACE15} la \$a${i}, arg_${i}${SPACE15} # \"$_text\""
           else
-            echo "${SPACE7} a${i}: &arg_${i}${SPACE7} # \"$_text\""
+            echo "${SPACE7} a${i}:    &arg_${i}${SPACE7} # \"$_text\""
           fi
           ;;
       esac
@@ -284,12 +290,12 @@ function marshal_on_stack () {
         ;;
       string)
         if [[ $_for = "code" ]] ; then 
-          echo "${SPACE15} la \$t1, arg_${i}\" #   $_text"
+          echo "${SPACE15} la \$t1, arg_${i} #   \"$_text\""
           echo "${SPACE15} addiu \$sp, \$sp, -4" # Push a word
           echo "${SPACE15} sw \$t1, 0(\$sp)"
           echo ""
         else
-          echo "${SPACE7} stack: &arg_${i}${SPACE7} # $_text"
+          echo "${SPACE7} stack: &arg_${i}${SPACE7} # \"$_text\""
         fi
         ;;
     esac
@@ -395,72 +401,93 @@ EOF
 } > ${BOOT_FILE}
 
 
+
 ###########################################################################
 function post_process () {
-  # The pos_process only occures if.
-  #   1. the user request more debugging information
-  #   1. the system determines there are errors
-
+  error_status="$?"
   # Break the output into the following section
-  # 1. user output
-  # 1. user requested registers
-  # 1. system requested registers
-  
+  #   1. normal user output
+  #   1. user requested registers
+  #   1. system requested registers
+
   num_lines=$(wc -l < ${OUTPUT_FILE})
   num_system_regs=$(awk '{print NF}' <<< ${DUMP_X_REGISTERS})
   num_regs=$(awk '{print NF}' <<< ${DUMP_REGISTERS})
   num_user_lines=$(( num_lines - num_regs ))
 
+
+  # Send out the the normal user output
   if (( num_user_lines > 0 )) ; then
     head -n ${num_user_lines} ${OUTPUT_FILE}
   fi 
-  # User asked for these so provide them on stdout
 
-  if (( num_regs > num_system_regs )) ; then 
-    # If I have more user requested registers
-    echo
-    # Provide the revised output of the registers
-    tail -n $num_regs  < ${OUTPUT_FILE} \
-      | head -n $(( num_regs - num_system_regs )) \
-      | while read _name _hex _value ; do
-          printf "%s: %10d 0x%08x\n" $_name $_hex $_hex
+  # Perform the post processing
+  #  1. determine if there is any errors
+  #  1. output to stderr if..
+  #     - signature summary
+  #     - any requested debugging information
+  #     - any error
+
+
+  # Generate a warning file if needed
+  { 
+    # 1. create a file with just the X register without a value of 0xdeadbeaf
+    REG_OUTPUT=.${SUB_NAME}.registers
+      tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > ${REG_OUTPUT}
+  
+    # 1. if "s*" is present, "Warning: One or more of the S registers were not restored."
+    grep -q "^\$ra" ${REG_OUTPUT}     && echo "Warning: Subroutine did not return properly."
+    grep -q "^\$sp" ${REG_OUTPUT}     && echo "Warning: The \$sp register was not restored."
+    grep -q "^\$fp" ${REG_OUTPUT}     && echo "Warning: The \$fp register was not restored."
+    grep -q "^\$gp" ${REG_OUTPUT}     && echo "Warning: The \$gp register was not restored."
+    grep -q "^\$s[0-7]" ${REG_OUTPUT} && {
+      echo "Warning: One or more of the S registers were not restored."
+      grep "^\$s[0-7]" ${REG_OUTPUT} |
+        while read _name _hex _value ; do
+          printf "\t%s: %10d 0x%08x\n" $_name $_hex $_hex
         done 
+      }
+    rm ${REG_OUTPUT}
+  } >${ERROR_FILE}
+
+
+  if (( SUMMARIZE == TRUE ||  
+        num_regs > num_system_regs  || 
+        $(wc -l < ${ERROR_FILE}) > 0 )) ; then 
+        echo "==========================================================="
   fi
 
-  subroutine_summary
+  if [[ ${SUMMARIZE} == TRUE ]] ; then
+    subroutine_summary
+    echo
+  fi
 
-  # This following information goes to stderr
-  {
-  # Generate any warnings
-  # 1. create a file with just the X register without a value of 0xdeadbeaf
-    tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > X.set_registers
+  if (( num_regs > num_system_regs )) ; then 
+    # Provide the revised output of the registers
+    tail -n $num_regs  < ${OUTPUT_FILE} \
+        | head -n $(( num_regs - num_system_regs )) \
+        | while read _name _hex _value ; do
+            printf "%s: %10d 0x%08x\n" $_name $_hex $_hex
+          done 
+    echo
+  fi
 
-  echo 
-  # 1. if "s*" is present, "Warning: One or more of the S registers were not restored."
-  grep -q "^\$ra" X.set_registers     && echo "Warning: Subroutine did not return properly."
-  grep -q "^\$sp" X.set_registers     && echo "Warning: The \$sp register was not restored."
-  grep -q "^\$fp" X.set_registers     && echo "Warning: The \$fp register was not restored."
-  grep -q "^\$gp" X.set_registers     && echo "Warning: The \$gp register was not restored."
-  grep -q "^\$s[0-7]" X.set_registers && {
-    echo "Warning: One or more of the S registers were not restored."
-    grep "^\$s[0-7]" X.set_registers |
-      while read _name _hex _value ; do
-        printf "\t%s: %10d 0x%08x\n" $_name $_hex $_hex
-      done 
-  }
+  if (( $(wc -l < ${ERROR_FILE} ) > 0)) ; then 
+    cat ${ERROR_FILE}
+  fi
+
 } 
-} >&2
+
+
 
 
 function subroutine_summary () {
  
-  if [[ ${SUMMARIZE} == TRUE ]] ; then
-    echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
-    marshal_in_registers "documenation"
-    i=$?
-    marshal_on_stack "documenation" $i
-  fi
-
+  echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
+  marshal_in_registers "documenation"
+  i=$?
+  marshal_on_stack "documenation" $i
+ 
 }
 
 #################################################################################
@@ -557,5 +584,5 @@ ${MARS} nc sm se1 ${DUMP_REGISTERS} \
      ${BOOT_FILE} ${SUB_NAME}.s > ${OUTPUT_FILE} 2>/dev/null
 
 # 1. Post process output
-post_process
+post_process $?
 
