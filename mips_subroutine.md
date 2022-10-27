@@ -1,9 +1,8 @@
 #### Status
   - floats are not handled
-  - -r not implemented
+  - -r ranges not implemented
   - -R not implemented
-  - -s not implemented
-  - post processing
+
 
 ### NAME
     mips_sub – execute a MIPS subroutine

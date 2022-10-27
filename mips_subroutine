@@ -385,15 +385,43 @@ EOF
 
 EOF
 
-  echo "${SPACE15} # Print out the value: assume its an integer"
-  echo "${SPACE15} move \$a0, \$v0"
-  echo "${SPACE15} li \$v0, 1"
-  echo "${SPACE15} syscall"
+  case ${SUB_RETURN_TYPE} in
+    null) 
+      ;;
+    integer)
+      echo "${SPACE15} # Print out the integer value"
+      echo "${SPACE15} move \$a0, \$v0"
+      echo "${SPACE15} li \$v0, 1"
+      echo "${SPACE15} syscall"
+      ;;
 
-   cat <<-EOF
+    double)
+      echo "${SPACE15} # Print out the double value"
+      echo "${SPACE15} move \$a0, \$f0"
+      echo "${SPACE15} li \$v0, 3"
+      echo "${SPACE15} syscall"
+      ;;
+    string)
+      echo "${SPACE15} # Print out the string value"
+      echo "${SPACE15} li \$a0, 0x22" #0x22 is the code for \"
+      echo "${SPACE15} li \$v0, 11"
+      echo "${SPACE15} syscall"
+
+      echo "${SPACE15} move \$a0, \$v0"
+      echo "${SPACE15} li \$v0, 4"
+      echo "${SPACE15} syscall"
+
+      echo "${SPACE15} li \$a0, 0x22" #0x22 is the code for \"
+      echo "${SPACE15} li \$v0, 11"
+      echo "${SPACE15} syscall"
+      ;;
+  esac
+
+
+  cat <<-EOF
+                
                 # Exit 0
-
-                li \$v0, 17
+                li \$v0, 10
                 syscall
 
 EOF
@@ -404,9 +432,10 @@ EOF
 
 ###########################################################################
 function post_process () {
-  error_status="$?"
+  error_status="$1"
   # Break the output into the following section
   #   1. normal user output
+  #   1. the return value
   #   1. user requested registers
   #   1. system requested registers
 
@@ -415,11 +444,24 @@ function post_process () {
   num_regs=$(awk '{print NF}' <<< ${DUMP_REGISTERS})
   num_user_lines=$(( num_lines - num_regs ))
 
+  if [[ ${SUB_RETURN_TYPE} != "null" ]] ; then 
+    # If null, then there is no output
+    SUB_RETURN_VALUE="$(sed -n ${num_user_lines}p < ${OUTPUT_FILE})"
+    ((  num_user_lines -= 1 ))  # remove one line
+  fi
 
   # Send out the the normal user output
   if (( num_user_lines > 0 )) ; then
-    head -n ${num_user_lines} ${OUTPUT_FILE}
+    head -n ${num_user_lines} ${OUTPUT_FILE} |
+    sed "s|$PWD/||"
   fi 
+
+  if [[ ${error_status} != 0 ]] ; then
+     exit 1
+  fi
+
+  echo ${SUB_RETURN_VALUE}
+
 
   # Perform the post processing
   #  1. determine if there is any errors
@@ -464,6 +506,7 @@ function post_process () {
 
   if (( num_regs > num_system_regs )) ; then 
     # Provide the revised output of the registers
+    # this can be converted to:  sed -n 'n,mp'
     tail -n $num_regs  < ${OUTPUT_FILE} \
         | head -n $(( num_regs - num_system_regs )) \
         | while read _name _hex _value ; do
@@ -474,6 +517,13 @@ function post_process () {
 
   if (( $(wc -l < ${ERROR_FILE} ) > 0)) ; then 
     cat ${ERROR_FILE}
+    exit 1
+  fi
+
+  if [[ ${SUB_RETURN_TYPE} == integer ]] ; then
+    return ${SUB_RETURN_VALUE}
+  else
+    return 0
   fi
 
 } 
@@ -495,10 +545,12 @@ function subroutine_summary () {
 
 
 #### Process CMD LINE
-while getopts ASsr:tv option ; do
+while getopts ASsr:R:tv option ; do
     case "${option}" in
         A)  ARG_STRUCTURE="array" ;;
         R)  case ${OPTARG} in
+              null)
+                ;;
               integer)
                 ;;
               double)
@@ -583,11 +635,7 @@ build_boot_file
 ${MARS} nc sm se1 ${DUMP_REGISTERS} \
      ${BOOT_FILE} ${SUB_NAME}.s > ${OUTPUT_FILE} 2>/dev/null
 
-# 1. Post process output
-if [[ $? == 1 ]] ; then 
-   sed "s|$PWD/||" ${OUTPUT_FILE}
-   exit 1; 
-fi
 
-post_process
+# 1. Post process output
+post_process "$?"
 
