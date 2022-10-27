@@ -584,5 +584,10 @@ ${MARS} nc sm se1 ${DUMP_REGISTERS} \
      ${BOOT_FILE} ${SUB_NAME}.s > ${OUTPUT_FILE} 2>/dev/null
 
 # 1. Post process output
-post_process $?
+if [[ $? == 1 ]] ; then 
+   sed "s|$PWD/||" ${OUTPUT_FILE}
+   exit 1; 
+fi
+
+post_process
 
