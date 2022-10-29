@@ -40,8 +40,8 @@
 
       -R type: specifies the return type from the subroutine, the type includes:
            - integer: the value of $v0 (default)
-           - long:    the value of $v1/$v0
-           - float:   the value of $f0
+           #- long:    the value of $v1/$v0
+           #- float:   the value of $f0
            - double:  the value of $f1
            - string:  the address of $v0
 
@@ -76,12 +76,16 @@
     MARS_JAR:  The location of the Mars jar file
     MARS:      The base command to invoke the Mars
 
-### EXPECTION and BUGS
+### EXPECTION, LIMITATIONS and BUGS
     If an argument conforms to the syntax of a number, but is malformed,
     the shell will report and error and stop. For example,
 
        $ mips_subroutine func 4#456
        bash: 4#456: value too great for base (error token is "4#456")
+
+    Any output from the user subroutine must ensure a newline ('\n') is the last
+    character printed.  This ensures the return value of the function is printed 
+    properly.
 
 ### EXIT STATUS
     The mips_subroutine exits with the value of $v0 register.
