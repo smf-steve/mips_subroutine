@@ -1,9 +1,3 @@
-#### Status
-  - floats are not handled
-  - -r ranges not implemented
-  - -R not implemented
-
-
 ### NAME
     mips_sub – execute a MIPS subroutine
 
@@ -38,12 +32,15 @@
       -S : pass all input arguments as strings
            - the default is to convert each argument when possible
 
-      -R type: specifies the return type from the subroutine, the type includes:
+      -R type: specifies the return type from the subroutine.  The return value
+         of the subroutine is emitted to stdout after the user output. The
+         return types include:
+           - none:    no return value is emitted
            - integer: the value of $v0 (default)
            #- long:    the value of $v1/$v0
-           #- float:   the value of $f0
-           - double:  the value of $f1
-           - string:  the address of $v0
+           #- float:  the value of $f0
+           - double:  the value of $f0-$f1
+           - string:  the "the string"
 
       -s : summarize the execution of the program 
            e.g., sub(1,2,3) returns $v0
@@ -78,16 +75,23 @@
 
 ### EXPECTION, LIMITATIONS and BUGS
     If an argument conforms to the syntax of a number, but is malformed,
-    the shell will report and error and stop. For example,
+    the shell will report an error and stop. For example,
 
        $ mips_subroutine func 4#456
        bash: 4#456: value too great for base (error token is "4#456")
 
-    Any output from the user subroutine must ensure a newline ('\n') is the last
-    character printed.  This ensures the return value of the function is printed 
-    properly.
+    Any output from the user subroutine should ensure a newline ('\n') is the last
+    character printed. 
+
+    This ensures the return value of the function is printed 
+    properly.  (This is fixed)
 
 ### EXIT STATUS
     The mips_subroutine exits with the value of $v0 register.
 
+
+#### Status
+  - floats are not handled
+  - -r ranges not implemented
+  - -R not implemented
 
