@@ -409,7 +409,7 @@ EOF
 
     double)
       echo "${SPACE15} # Print out the double value"
-      echo "${SPACE15} move \$a0, \$f0"
+      echo "${SPACE15} move \$a0, \$f0"   ## first have to mv from memory
       echo "${SPACE15} li \$v0, 3"
       echo "${SPACE15} syscall"
       ;;
