@@ -49,20 +49,22 @@ EOF
 #
 # ENVIRONMENT_VARS
 #    The following environment variables affect the execution of mips_subroutine:
-#
-#    MARS_JAR:  The location of the Mars jar file
+#    MARS:      The command to run MARS
+#    MARS_JAR:  The location of the MARS jar file
 ###########################################################################
 
 
+if [[ -z "${MARS}" ]] ; then
+  MARS="$(which mars)"
+fi
 
-MARS=$(which mars)
-
-if [[ -z ${_MARS} ]] ; then
-  if [[ -z ${MARS_JAR} ]] ; then
+if [[ -z "${MARS}" ]] ; then
+  if [[ -z "${MARS_JAR}" ]] ; then
     echo "MARS (MIPS Assembler and Runtime System) not found!"
     exit 2
   else
     MARS="java - ${MARS_JAR}"
+  fi
 fi
 
 
