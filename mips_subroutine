@@ -3,9 +3,17 @@
 # trap 0 cleanup
 
 ###########################################################################
-# This is a small shell script to execute a MIPS subroutine.
-# The purpose of this execution is to perform unit testin.
+# The purpose of this script is to execute a single MIPS subroutine.
+# The two primary uses of this script is
+#   1. to develop and to debug a single MIPS subroutine
+#      - without the need to develop other parts of a program
+#      - command arguments are marshaled to conform to MIPS argument passing convention
+#      - additional CLI options exist to present arguments in specialized forms, e.g., the ARGV structure
+#   1. to perform unit testing on a single MIPS subroutine
+#      - checks are made to ensure subroutine register preservation rules are followed
+#      - additional CLI options exist to present return values of various types. 
 #
+
 function usage_synopsis () {
   echo "Usage:  mips_sub [ option ... ] name [ arg ... ]"
 }
@@ -18,7 +26,6 @@ function usage_full () {
 EOF
 }
 
-
 #
 #         name: the name of the subroutine, located witin the file name.s
 #         arg:  an argument to be based to the subroutine
@@ -26,10 +33,16 @@ EOF
 #         See mips_subroutine.md for a full description
 #
 ###########################################################################
+
+
+
+
+
+###########################################################################
 # Steps to Execute
 #  1. Process CMD LINE
 #  1. Assemble file that contains the subroutine:  "name.s"
-#  1. Build the bootstraping file that calls the "name" subroutine
+#  1. Build the bootstrapping file that calls the "name" subroutine
 #  1. Execute MARS to execute the bootstrapping program
 #  1. Post process the output from the bootstrapping program and MARS
 #
@@ -38,15 +51,18 @@ EOF
 #    The following environment variables affect the execution of mips_subroutine:
 #
 #    MARS_JAR:  The location of the Mars jar file
-#    MARS:      The base command to invoke the Mars 
 ###########################################################################
 
 
-if [[ -z ${MARS_JAR} ]] ; then
-  MARS_JAR=$HOME/Desktop/Classes/comp122/mars-mips/mars/Mars4_5.jar
-fi
-if [[ -z ${MARS} ]] ; then
-  MARS="java -jar ${MARS_JAR}"
+
+MARS=$(which mars)
+
+if [[ -z ${_MARS} ]] ; then
+  if [[ -z ${MARS_JAR} ]] ; then
+    echo "MARS (MIPS Assembler and Runtime System) not found!"
+    exit 2
+  else
+    MARS="java - ${MARS_JAR}"
 fi
 
 
@@ -64,14 +80,14 @@ SUB_RETURN_VALUE=""        # The value and associated type of the return value
 SUB_RETURN_TYPE="integer"  # integer (default value), double, string
 
 
+PARAM_CONVENTION=
 ARG_CONVENTION="base"  # The
   # ="base"   -- each arg is converted to its base type
   # ="string" -- each arg is passed as a string
 
 ARG_STRUCTURE="flat"
-  # ="flat"   -- all args are passed as single arguments
-  # ="array"  -- all args are passed within an array
-
+  # ="flat"   -- all values are passed as individual arguments
+  # ="array"  -- all values are passed within an array
 
 SUMMARIZE="FALSE"
   # emits the subroutine call with its arguments
@@ -105,8 +121,52 @@ SPACE15="               "
 SPACE7="       "
 
 ###########################################################################
+## Following are functions to convert output to more readable formats
+
+## Convert a decimal number to hex with bytes separated
+#    - format "0x XX XX XX XX XX"
+function to_hex () {
+  _size=${1}
+  _decimal=${2}
+  _hex=$(printf "%0${_size}X" ${_decimal})
+
+  # Make it a byte at a time:
+  sed -e 's/\(..\)/ \1/g' -e 's/^ //' <<< $_hex
+}
+
+## Convert a hexadecimal number to binary with nibbles separated
+#    - format "bbbb bbbb bbbb bbbb"
+function to_binary () {
+  _hex=${1}
+  # Make it a nibble at a time
+  _exploded=$(sed -e 's/ //g' -e 's/\(.\)/ \1/g' <<< $_hex)
+  _value=""
+  for i in $_exploded ; do
+    case $i in 
+       0   ) _value="${_value} 0000" ;;
+       1   ) _value="${_value} 0001" ;;
+       2   ) _value="${_value} 0010" ;;
+       3   ) _value="${_value} 0011" ;;
+       4   ) _value="${_value} 0100" ;;
+       5   ) _value="${_value} 0101" ;;
+       6   ) _value="${_value} 0110" ;;
+       7   ) _value="${_value} 0111" ;;
+       8   ) _value="${_value} 1000" ;;
+       9   ) _value="${_value} 1001" ;;
+       a|A ) _value="${_value} 1010" ;;
+       b|B ) _value="${_value} 1011" ;;
+       c|C ) _value="${_value} 1100" ;;
+       d|D ) _value="${_value} 1101" ;;
+       e|E ) _value="${_value} 1110" ;;
+       f|F ) _value="${_value} 1111" ;;
+    esac
+  done
+  echo $_value
+}
 
 
+## Convert command line arguments into a traditional subroutine call
+#    - format: "name(arg1, arg2, ..., argn)"
 function sub_routine_call () {
   echo -n "${SUB_NAME}("
   for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
@@ -140,7 +200,12 @@ function sub_routine_call () {
   done
   echo ")"   
 }
+###########################################################################
 
+
+
+###########################################################################
+# The following functions are used to prepare to MIPS bootstrapping code
 
 function build_data_segment () {
   echo "${SPACE15} .data"
@@ -155,10 +220,12 @@ function build_data_segment () {
   echo "                .align 2"
   echo "argc:           .word  ${#SUB_ARGS_TEXT[@]}"
   echo -n "argv:           .word "
-  for ((i=0; i < ${#SUB_ARGS_TEXT[@]} -1; i++)) ; do
-      echo -n "arg_${i}, "
-  done
-  echo "arg_${i} "
+  if (( ${#SUB_ARGS_TEXT[@]} > 0 )) ; then 
+    for ((i=0; i < ${#SUB_ARGS_TEXT[@]} -1; i++)) ; do
+       echo -n "arg_${i}, "
+    done
+    echo "arg_${i} "
+  fi
   echo ""
 
   for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
@@ -178,7 +245,7 @@ function build_data_segment () {
 
       char)
          echo "                .align 2"
-         echo "arg_${i}:          .word '$_value' # '$_text'"
+         echo "arg_${i}:          .byte '$_value' # '$_text'"  #<<<
          ;;
 
       integer)
@@ -201,16 +268,20 @@ function build_data_segment () {
   echo "saved_double:   .double"
 }
 
+## Marshaling of input arguments can be perform in two ways:
+#    - marshal_in_registers:  which utilizes register conforming to the MIPS convention
+#    - marshal_on_stack:      which utilizes the stack in the traditional way for "additional values"
+
 function marshal_in_registers () {
-  # $1 can either be "code", "documentation"
-  _for="$1"
-  # Marshal the input args
+  # This function can generate output for both code or documentation purposes
+
+  _for="$1"     # _for = "code" | "documentation"
+  [[ -z $_for ]] && { echo internel error; exit 2; }  
 
   if [[ $_for == "code" ]] ; then 
     echo ""
-    echo "${SPACE15} # Marshal the input arguments into the registers"
+    echo "${SPACE15}  # Marshal the input arguments into the registers"
   fi
-
 
   if [[ ${ARG_STRUCTURE} == "array" ]] ; then
     if [[ $_for == "code" ]] ; then 
@@ -285,19 +356,24 @@ function marshal_in_registers () {
   return $i
 }
 
+
 function marshal_on_stack () {
-  _for="$1"
-  i="$2"
+  # This function can generate output for both code or documentation purposes
+
+  _for="$1"     # _for = "code" | "documentation"
+  _arg_num="$2"  # The first argument that is placed on the stack
+
+  [[ -z $_for ]] && { echo internel error; exit 2; }  
 
   if [[ $_for == "code" ]] ; then 
     echo ""
     echo "${SPACE15} # Marshal the remaining input arguments onto the stack"
   fi
 
-  for (( ; i < ${#SUB_ARGS_TEXT[@]} ; i++ )) ; do
-    _text=${SUB_ARGS_TEXT[$i]}
-    _type=${SUB_ARGS_TYPES[$i]}
-    _value=${SUB_ARGS_VALUES[$i]}
+  for (( ; _arg_num < ${#SUB_ARGS_TEXT[@]} ; _arg_num++ )) ; do
+    _text=${SUB_ARGS_TEXT[${_arg_num}]}
+    _type=${SUB_ARGS_TYPES[${_arg_num}]}
+    _value=${SUB_ARGS_VALUES[${_arg_num}]}
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
       _type="string"
     fi   
@@ -338,27 +414,30 @@ function marshal_on_stack () {
 
 
 function set_registers () {
-  # Set values in the registers
-    echo ""
-    echo "${SPACE15} # Set the T registers to be random values"
-    for ((i=0; i <= 9 ; i++ )) ; do
-      echo "${SPACE15} li \$t${i}, ${RANDOM}"
-    done
-    echo ""
-    echo "${SPACE15} # Set the S registers to 0xDeadBeef"
-    for ((i=0; i <= 7 ; i++ )) ; do
-      echo "${SPACE15} li \$s${i}, 0xDeadBeef"
-    done
+  # Set values in the registers to allow for proper testing
+  # T registers are random to prevent well know values to be assigned
+  # S, FP and GP registers are set to DeadBeef to ensure they are restored
+  # SP value is saved to later test if it was restored correctly
+  echo ""
+  echo "${SPACE15} # Set the T registers to be random values"
+  for ((i=0; i <= 9 ; i++ )) ; do
+   echo "${SPACE15} li \$t${i}, ${RANDOM}"
+  done
+  echo ""
+  echo "${SPACE15} # Set the S registers to 0xDeadBeef"
+  for ((i=0; i <= 7 ; i++ )) ; do
+   echo "${SPACE15} li \$s${i}, 0xDeadBeef"
+  done
 
-    echo ""
-    echo "${SPACE15} # Set the FP and GP registers"
-    echo "${SPACE15} li \$fp, 0xDeadBeef"
-    echo "${SPACE15} li \$gp, 0xDeadBeef"
+  echo ""
+  echo "${SPACE15} # Set the FP and GP registers"
+  echo "${SPACE15} li \$fp, 0xDeadBeef"
+  echo "${SPACE15} li \$gp, 0xDeadBeef"
 
-    echo ""
-    echo "${SPACE15} # Save the SP registers"
-    echo "${SPACE15} sw \$sp, saved_sp"
-  }
+  echo ""
+  echo "${SPACE15} # Save the SP registers"
+  echo "${SPACE15} sw \$sp, saved_sp"
+}
 
 function build_boot_file () {
   ## Steps to build the boot file.
@@ -386,13 +465,12 @@ EOF
 
   set_registers
   marshal_in_registers "code"
-  i="$?"
+  _next_arg="$?"
 
-  if (( i <= ${#SUB_ARGS_TEXT[@]} )) ; then
-    marshal_on_stack "code" $i
+  if (( _next_arg <= ${#SUB_ARGS_TEXT[@]} )) ; then
+    marshal_on_stack "code" ${_next_arg}
   fi
 
-    
 
   #     1. Call the "SUB_NAME"  
   #     1. Exit the value of $v0
@@ -404,9 +482,9 @@ EOF
                 # If we made it here, then all registers that 
                 # should have been preserved over the subroutine
                 # boundary should be set to 0xDeadBeef;   
-                # except $ra and $sp.
+                # except \$ra and \$sp.
 
-                # If we are here than set $ra to 0xDead Beef
+                # If we are here than set \$ra to 0xDead Beef
                 li \$ra, 0xDeadBeef
 
                 # If the SP value is what it was prior to the
@@ -421,6 +499,10 @@ EOF
 
   case ${SUB_RETURN_TYPE} in
     null) 
+      echo "${SPACE15} # Print a blank line"
+      echo "${SPACE15} li \$a0, '\n'"
+      echo "${SPACE15} li \$v0, 11"
+      echo "${SPACE15} syscall"
       ;;
     integer)
       echo "${SPACE15} # Print the integer in \$v0"
@@ -431,7 +513,7 @@ EOF
 
     double)
       echo "${SPACE15} # Print the double in \$f0"
-      echo "${SPACE15} move \$a0, \$f0"
+      echo "${SPACE15} # move \$a0, \$f0"
       echo "${SPACE15} li \$v0, 3"
       echo "${SPACE15} syscall"
       ;;
@@ -467,24 +549,62 @@ EOF
 } > ${BOOT_FILE}
 
 
-
 ###########################################################################
+
+function pretty_print_output () {
+
+### Convert the MIPS RETURN OUTPUT to
+###   - a pretty formatted output for arrays, etc.
+  if [[ ${SUB_RETURN_TYPE} == "string" ]] ;  then
+    echo ${SUB_RETURN_LINE}
+    # make sure the quotes stay in tact
+  else
+    for i in ${SUB_RETURN_LINE} ; do
+      case ${SUB_RETURN_TYPE} in
+        integer | int | int[] )
+          _decimal=${i}
+          _hex=$(to_hex 8 ${i} )
+          _binary=$(to_binary "${_hex}")
+          printf "%10d; 0x%s; 0b%s;\n" "${_decimal}" "${_hex}" "${_binary}"
+          ;;
+        long | long[] )
+          _decimal=${i}
+          _hex=$(to_hex 16 ${i} )
+          _binary=$(to_binary "${_hex}")
+          printf "%20d; 0x%s; 0b%s;\n" "${_decimal}" "${_hex}" "${_binary}" 
+          ;;
+        double | double[] )
+          echo ${i}
+          ;;
+        char | char[] )
+          _decimal=$(printf '%d' "'${i}")
+          _hex=$(to_hex 2 "${_decimal}" )
+          _binary=$(to_binary "${_hex}")
+          printf "'%c'; %3d; 0x%s; 0b%s;\n" "${i}"  "${_decimal}" "${_hex}" "${_binary}"
+          ;;
+      esac
+    done
+  fi
+
+}
+
 function post_process () {
   error_status="$1"
   # Break the output into the following section
   #   1. normal user output
-  #   1. the return value
-  #   1. user requested registers
-  #   1. system requested registers
+  #   1. the return value  (always one line)
+  #   1. user requested registers  (as calculated)
+  #   1. system requested registers (as calculated)
 
   num_lines=$(wc -l < ${OUTPUT_FILE})
   num_system_regs=$(awk '{print NF}' <<< ${DUMP_X_REGISTERS})
   num_regs=$(awk '{print NF}' <<< ${DUMP_REGISTERS})
   num_user_lines=$(( num_lines - num_regs ))
 
+  # error... output is guarenteed to be one line ALWAYS
   if [[ ${SUB_RETURN_TYPE} != "null" ]] ; then 
     # If null, then there is no output
-    SUB_RETURN_VALUE="$(sed -n ${num_user_lines}p < ${OUTPUT_FILE})"
+    SUB_RETURN_LINE="$(sed -n ${num_user_lines}p < ${OUTPUT_FILE})"
     ((  num_user_lines -= 1 ))  # remove one line
   fi
 
@@ -498,11 +618,12 @@ function post_process () {
      exit 1
   fi
 
-  echo ${SUB_RETURN_VALUE}
+
+  pretty_print_output "${SUB_RETURN_LINE}"
 
 
   # Perform the post processing
-  #  1. determine if there is any errors
+  #  1. validate param passing conventions 
   #  1. output to stderr if..
   #     - signature summary
   #     - any requested debugging information
@@ -512,29 +633,29 @@ function post_process () {
   # Generate a warning file if needed
   { 
     # 1. create a file with just the X register without a value of 0xdeadbeaf
-    REG_OUTPUT=.${SUB_NAME}.registers
-      tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > ${REG_OUTPUT}
+    REGISTER_OUTPUT=.${SUB_NAME}.registers
+      tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > ${REGISTER_OUTPUT}
   
     # 1. if "s*" is present, "Warning: One or more of the S registers were not restored."
-    grep -q "^\$ra" ${REG_OUTPUT}     && echo "Warning: Subroutine did not return properly."
-    grep -q "^\$sp" ${REG_OUTPUT}     && echo "Warning: The \$sp register was not restored."
-    grep -q "^\$fp" ${REG_OUTPUT}     && echo "Warning: The \$fp register was not restored."
-    grep -q "^\$gp" ${REG_OUTPUT}     && echo "Warning: The \$gp register was not restored."
-    grep -q "^\$s[0-7]" ${REG_OUTPUT} && {
+    grep -q "^\$ra" ${REGISTER_OUTPUT}     && echo "Warning: Subroutine did not return properly."
+    grep -q "^\$sp" ${REGISTER_OUTPUT}     && echo "Warning: The \$sp register was not restored."
+    grep -q "^\$fp" ${REGISTER_OUTPUT}     && echo "Warning: The \$fp register was not restored."
+    grep -q "^\$gp" ${REGISTER_OUTPUT}     && echo "Warning: The \$gp register was not restored."
+    grep -q "^\$s[0-7]" ${REGISTER_OUTPUT} && {
       echo "Warning: One or more of the S registers were not restored."
-      grep "^\$s[0-7]" ${REG_OUTPUT} |
+      grep "^\$s[0-7]" ${REGISTER_OUTPUT} |
         while read _name _hex _value ; do
           printf "\t%s: %10d 0x%08x\n" $_name $_hex $_hex
         done 
       }
-    rm ${REG_OUTPUT}
+    rm ${REGISTER_OUTPUT}
   } >${ERROR_FILE}
 
 
   if (( SUMMARIZE == TRUE ||  
         num_regs > num_system_regs  || 
         $(wc -l < ${ERROR_FILE}) > 0 )) ; then 
-        echo "==========================================================="
+        echo  # "==========================================================="
   fi
 
   if [[ ${SUMMARIZE} == TRUE ]] ; then
@@ -567,21 +688,18 @@ function post_process () {
 } 
 
 
-
-
 function subroutine_summary () {
  
   echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
-  marshal_in_registers "documenation"
-  i=$?
-  marshal_on_stack "documenation" $i
+  marshal_in_registers "documentation"
+  _next_arg=$?
+  marshal_on_stack "documentation" ${_next_arg}
  
 }
 
 #################################################################################
 # MAIN Program
 
- 
 if [[ $# == 0 ]] ; then 
   usage_synopsis 
   exit 1
@@ -594,19 +712,25 @@ while getopts hASsr:R:tv option ; do
             exit 1
             ;;
         A)  ARG_STRUCTURE="array" ;;
-        R)  case ${OPTARG} in
+        R)  SUB_RETURN_ARRAY="FALSE"
+            case ${OPTARG} in
               null)
                 ;;
-              integer)
+              integer | int | long )
                 ;;
               double)
                 ;;
               string)
                 ;;
+              int[] | long[] | double[] | char[] )
+                SUB_RETURN_ARRAY="TRUE"
+                ;;
+
               *) echo "invalid return type"
                  exit 1 ;;
             esac
-            SUB_RETURN_TYPE="${OPTARG}" ;;
+            SUB_RETURN_TYPE="${OPTARG}" 
+            ;;
         S)  ARG_CONVENTION="string" ;;
         s)  SUMMARIZE="TRUE" ;;
         r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
@@ -648,14 +772,23 @@ for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
   # Handles binary
   egrep -q "^[+-]?0[bB][ 01]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
          _type="integer" 
+         _value=$(( $(sed -e 's/0[bB]/2#/' -e 's/ //g' <<< ${SUB_ARGS_TEXT[$i]} ) ))
+  }
+
+
+  # Handles decimal.
+  egrep -q "^[+-]?[1-9][ 0-9]*$" <<< ${SUB_ARGS_TEXT[$i]} && {
+         _type="integer" 
          _value=$(( $(sed -e 's/ //g' <<< ${SUB_ARGS_TEXT[$i]} ) ))
   }
 
-  # Handles octal and decimal.
-  egrep -q "^[+-]?[0-9]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
+  # Handles octal .
+  egrep -q "^[+-]?0[o]?[ 0-7]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
          _type="integer" 
-         _value=$(( ${SUB_ARGS_TEXT[$i]} ))
+         _octal_value=$(sed -e 's/[oO]//' -e 's/ //g' <<< ${SUB_ARGS_TEXT[$i]} )
+         _value=$(( _octal_value ))
   }
+
   # Handles hexadecimal
   egrep -q "^[+-]?0[xX]?[ 0-9A-Fa-f]+$" <<< ${SUB_ARGS_TEXT[$i]} && {
          _type="integer" 
@@ -678,26 +811,28 @@ grep -q "${SUB_NAME}:" ${SUB_NAME}.s  ||
      { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
 
 
-
-#  1. Assemble ${SUB_NAME}.s, stop if there are errors
-${MARS} nc a ae1 p ${SUB_NAME}.s  > ${ASSEMBLER_FILE}
-if [[ $? == 1 ]] ; then 
-   sed "s|$PWD/||" ${ASSEMBLER_FILE}
-   exit 1; 
-fi
+# MARS is the execution hog... 
+# No value in checking for assembly before building the boot file
+## #  1. Assemble ${SUB_NAME}.s, stop if there are errors
+## ${MARS} nc a ae1 p ${SUB_NAME}.s  > ${ASSEMBLER_FILE}
+## if [[ $? == 1 ]] ; then 
+##    sed "s|$PWD/||" ${ASSEMBLER_FILE}
+##    exit 1; 
+## fi
 
 #  1. Built the boot file
 build_boot_file
 
 #  1. Execute Mars with boot file
 #  ae1 is needed in the case there is a linkage error.
-${MARS} nc sm ae2 se1 p ${DUMP_REGISTERS} \
+#  10000 is the max number of instructions to execute to prevent infinite loops
+${MARS} 10000 nc sm ae2 se1 p ${DUMP_REGISTERS} \
      ${BOOT_FILE} ${SUB_NAME}.s > ${OUTPUT_FILE} 2>/dev/null
 if [[ $? == 2 ]] ; then 
    sed "s|$PWD/||" ${OUTPUT_FILE}
    exit 1; 
 fi
 
-# 1. Post process output
+# 1. Post process output (0 is good, 1 is bad)
 post_process "$?"
 
