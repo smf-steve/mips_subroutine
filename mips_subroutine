@@ -512,8 +512,8 @@ EOF
       ;;
 
     double)
-      echo "${SPACE15} # Print the double in \$f0"
-      echo "${SPACE15} # move \$a0, \$f0"
+      echo "${SPACE15} # Print the double in \$f12"
+      echo "${SPACE15} # mov.d \$f12, \$f0"  
       echo "${SPACE15} li \$v0, 3"
       echo "${SPACE15} syscall"
       ;;
