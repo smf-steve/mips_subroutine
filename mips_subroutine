@@ -13,19 +13,17 @@ case ${0} in
      LANG_EXT=".j"
 esac
 
+
+### FILE NAME RELATED ENVIRONMENT VARIABLES
 BOOTSTRAP_DIR=".${VERSION}_subroutine.bootstrap"
 mkdir -p ${BOOTSTRAP_DIR}
 
-
-### FILE NAME RELATED ENVIRONMENT VARIABLES
 OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
 ASSEMBLER_FILE="${BOOTSTRAP_DIR}/assembler.output"
 ERROR_FILE="${BOOTSTRAP_DIR}/bootstrap.errors"
 
-
 BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/${SUB_NAME}.bootstrap.s"
 BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.s"
-
 
 cleanup () {
   #  call on a trap on exit
@@ -86,20 +84,20 @@ EOF
 #    MARS_JAR:  The location of the MARS jar file
 ###########################################################################
 
+: ${JAVAC:=$(which JAVAC)}
+: ${JAVA:=$(which JAVA)}
+: ${MARS:=$(which MARS)}
 
-if [[ -z "${MARS}" ]] ; then
-  MARS="$(which mars)"
-fi
+[[ -n "${JAVA}" ]] || { echo "java command not found!"; exit 1; }
 
-if [[ -z "${MARS}" ]] ; then
-  if [[ -z "${MARS_JAR}" ]] ; then
+if [[ -z "${MARS}" ]] ; then 
+  if [[ -n "${MARS_JAR}" ]] ; then
+    MARS="${JAVA} - ${MARS_JAR}"
+  else 
     echo "MARS (MIPS Assembler and Runtime System) not found!"
     exit 2
-  else
-    MARS="java - ${MARS_JAR}"
   fi
 fi
-
 
 ###########################################################################
 # ENVIRONMENT VARABLE DESCRIPTONS
@@ -692,7 +690,7 @@ function print_user_output () {
 
   # Send out the the normal user output
   if [[ ${num_user_lines} > 0 ]]; then 
-    head -n ${num_user_lines} ${OUTPUT_FILE}
+    head -n ${num_user_lines} ${OUTPUT_FILE} | sed "s|${PWD}/||"
   fi
   if [[ ${last_output_line} != "" ]] ; then
      # User forgot to provide the final '\n', so print out the line
@@ -733,7 +731,7 @@ function post_process () {
   # Generate a warning file if needed
   { 
     # 1. create a file with just the X register without a value of 0xdeadbeaf
-    REGISTER_OUTPUT=.${SUB_NAME}.registers
+    REGISTER_OUTPUT=${BOOTSTRAP_DIR}/${SUB_NAME}.registers
       tail -n $num_system_regs ${OUTPUT_FILE} | grep -v "0xdeadbeef" > ${REGISTER_OUTPUT}
   
     # 1. if "s*" is present, "Warning: One or more of the S registers were not restored."
