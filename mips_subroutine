@@ -5,7 +5,7 @@
 case ${0} in
    *mips_subroutine)
      VERSION="mips"
-     LANG_EXT=".s"
+     LANG_EXT="s"
      DUMP_X_REGISTERS="s0 s1 s2 s3 s4 s5 s6 s7 fp gp sp ra"
      DUMP_REG_LIST=""
      DUMP_T_REGS=""
@@ -15,7 +15,7 @@ case ${0} in
 
    *java_subroutine)
      VERSION="java"
-     LANG_EXT=".j"
+     LANG_EXT="j"
      DUMP_X_REGISTERS=""
      DUMP_REG_LIST=""
      DUMP_T_REGS=""
@@ -301,7 +301,9 @@ cat <<-EOF
 
     // Augment this code based upon desired output type
 
-    mips.print_ci('\n');   // Print extra \n incase user did not
+    mips.print_ci('\n');   // Print extra '\n' in case the users
+                           // last line does not include the 
+                           // proforma '\n'.
     mips.print_d(\$v0);
     mips.print_ci('\n');
     return;
@@ -951,19 +953,29 @@ shift ${OPTIND}
 
 # # Note that you must run the command in the current working directory of the files
 #
-SUB_NAME_FILE="${SUB_NAME}.s"
+SUB_NAME_FILE="${SUB_NAME}.${LANG_EXT}"
 SUB_NAME=$(basename ${SUB_NAME})
 
 # Command line related error checking
 [ $SUB_NAME != "main" ] || 
-     { echo "File name cannot be \"main.s\"." ; exit 1; }
+     { echo "File name cannot be \"main.${LANG_EXT}\"." ; exit 1; }
 
 [ -f ${SUB_NAME_FILE} ] || 
      { echo "File \"${SUB_NAME_FILE}\" does not exist." ; exit 1 ; }
 
-grep -q "${SUB_NAME}:" ${SUB_NAME_FILE}  || 
-     { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
-
+if [[ ${VERSION} == "mips" ]] ; then 
+  # Perhaps this should be looking for "."
+  grep -q "${SUB_NAME}:" ${SUB_NAME_FILE}  || 
+       { echo "Subroutine $SUB_NAME not declared \".globl\"" ; exit 1; }
+fi
+if [[ ${VERSION} == "java" ]] ; then 
+  grep -q "public *static .* ${SUB_NAME}(" ${SUB_NAME_FILE}  || 
+       { echo "Subroutine $SUB_NAME not declared \"public static\"." ; exit 1; }
+fi
+if [[ ${VERSION} == "c" ]] ; then 
+  grep -q "${SUB_NAME}:" ${SUB_NAME_FILE}  || 
+       { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
+fi
 
 
 function process_subcommand_args () {
