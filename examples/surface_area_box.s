@@ -1,3 +1,4 @@
+        .text
 	.globl surface_area_box
 
 surface_area_box:

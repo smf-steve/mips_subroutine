@@ -1,0 +1,16 @@
+Error in /Users/steve/repositories/mips_subroutine/examples/echo4.s line 21: Runtime exception at 0x004000f4: address out of range 0x00000003
+
+Processing terminated due to errors.
+
+$s0	0xdeadbeef
+$s1	0xdeadbeef
+$s2	0xdeadbeef
+$s3	0xdeadbeef
+$s4	0xdeadbeef
+$s5	0xdeadbeef
+$s6	0xdeadbeef
+$s7	0xdeadbeef
+$fp	0xdeadbeef
+$gp	0xdeadbeef
+$sp	0x7fffefe0
+$ra	0x00400174
