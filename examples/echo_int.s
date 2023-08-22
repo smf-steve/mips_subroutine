@@ -14,11 +14,17 @@
 
 
                 .data
-num:            .space 4        # space for a integer number
+num:            .space 4        # Space for an integer
         
                 .text
                 .globl echo_int
-        
+
+test:           # A hard code subroutine to test "echo_int"
+                jal echo_int
+
+                li $v0, 10      # Service #10: terminate the program
+                syscall      
+
 echo_int:       nop             
                 li $v0, 5       # Service #5: read decimal
                 syscall         
@@ -28,14 +34,9 @@ echo_int:       nop
                 la $t0, num     # Obtain the lval (address) of num
                 sw $v0, 0($t0)  # Store the value in v0 to memory at the address t0
 
-
-                lw $t0, 0($t0) # Load the value in main memory at t0 into t0
- 
-        
-                move $a0, $t0   # The value to be printed
+                lw $a0, 0($t0)  # Load the value in main memory at t0 into a0, the value to be printed
                 li $v0, 1       # Service #1:  print decimal integer
                 syscall         
-        
-                li $v0, 10      # Service #10: terminate the program
-                syscall      
 
+                move $v0, $a0   # Make the value printed the return value of the subroutine
+                jr $ra

@@ -6,6 +6,7 @@
 # features of the MIPS ISA.  As part of this example, students
 # have implemented the equivalent program in Java.
 
+# When you reun the program, you are expected to type in 10 values
 
                 .data
 str1:           .ascii "Stored Checksum: \0"
@@ -15,8 +16,7 @@ err_str:        .asciiz "Error Detected!\n\0"
 
 
                 .text
-                .globl main
-                # .include ""
+                .globl checksum
 
                 .macro exit(%reg)
                 move $a0, %reg
@@ -25,7 +25,7 @@ err_str:        .asciiz "Error Detected!\n\0"
                 .end_macro
 
 
-main:           jal checksum
+test:           jal checksum
                 exit($v0)
 
 checksum: 

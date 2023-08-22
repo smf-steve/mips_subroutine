@@ -17,12 +17,16 @@
         
                 .globl empty     
                 # define your default starting routine
-        
-empty:          nop             # label for the main subroutine
-        
-        
-        
-                # terminate your program
+ 
+
+test:           # A hard code subroutine to test "empty"
+                jal empty
+
                 li $v0, 10      # v0 contains the number for exit, 10
                 syscall         # trap: exit
 
+
+empty:          nop             # label for the main subroutine
+
+                move $v0, $zero
+                jr $ra
