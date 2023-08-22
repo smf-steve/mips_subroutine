@@ -38,7 +38,7 @@ BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.s"
 BOOTSTRAP_JAVA_FILE="${BOOTSTRAP_DIR}/bootstrap.java"
 
 # the PREFIX to simplify error messages
-PWD_STRING=$(pwd)/${BOOTSTRAP_DIR}
+PWD_STRING=$(pwd)
 
 
 
@@ -722,17 +722,16 @@ function fix_error_messages () {
   # modify the error message to reflect a clean output
   # Make the file name relative
   # revised the line number
-   sed "s|${BOOTSTRAP_JAVA_FILE}/||"        |
-     sed "s|${BOOTSTRAP_DIR}/||"            |
-     sed "s/bootstrap.java/${SUB_NAME}.j/"  |
-     while IFS= read _line ; do    #handle the shift in the line numbers
-       _number=$(sed -n "/error:/s|^.*${SUB_NAME}.j:\([0-9][0-9]*\):.*$|\1|p" <<< $_line)
-       if [[ -n "$_number" ]] ; then 
-         (( _number = _number - 3 ))
-         _line=$(sed "s|${SUB_NAME}.j:[0-9][0-9]*:|${SUB_NAME}.j:$_number:|" <<< $_line)
-       fi
-       echo "$_line"
-     done |
+   sed -e "s|${BOOTSTRAP_JAVA_FILE}/||"  -e "s|${BOOTSTRAP_DIR}/||" \
+       -e "s/bootstrap.java/${SUB_NAME}.j/"  -e "s|${PWD_STRING}/||" |
+    while IFS= read _line ; do    #handle the shift in the line numbers
+      _number=$(sed -n "/error:/s|^.*${SUB_NAME}.j:\([0-9][0-9]*\):.*$|\1|p" <<< $_line)
+      if [[ -n "$_number" ]] ; then 
+        (( _number = _number - 3 ))
+        _line=$(sed "s|${SUB_NAME}.j:[0-9][0-9]*:|${SUB_NAME}.j:$_number:|" <<< $_line)
+      fi
+      echo "$_line"
+    done |
   cat
 }
 
@@ -771,11 +770,10 @@ execute_mips () {
 
 
 function print_user_output () { 
-  error_status="$1"
   # The output is structured as follows:
   # ---
   #  <user output>              : {calculated} lines
-  #  <extra \n>                 : 1 line, but if a not a empty line then, user forgot '\n'
+  #  <extra \n>                 : 1 line, but if a not an empty line then, user forgot '\n'
   #  return value               : 1 line
   #  user requested registers   : {calculated} lines
   #  system requested registers : {calculated} lines
@@ -796,26 +794,23 @@ function print_user_output () {
 
   # Send out the the normal user output
   if [[ ${num_user_lines} > 0 ]]; then 
-    head -n ${num_user_lines} ${OUTPUT_FILE} | 
-      fix_error_messages
+    head -n ${num_user_lines} ${OUTPUT_FILE}
   fi
   if [[ ${last_output_line} != "" ]] ; then
      # User forgot to provide the final '\n', so print out the line
      echo "${last_output_line}" 
   fi
 
-  if [[ ${error_status} == 0 ]] ; then 
-    if [[ num_user_lines > 0 || ${last_output_line} != "" ]] ; then
-      echo '#########################################'
-      echo '# Above is the output from your program'
+  if [[ num_user_lines > 0 || ${last_output_line} != "" ]] ; then
+    echo '#########################################'
+    echo '# Above is the output from your program'
 
-      if [[ ${last_output_line} != "" ]] ; then
-        echo "# - note the last line of your"
-        echo "#   output did not include a '\n'"
-      fi
-      echo '#########################################'
-      echo
+    if [[ ${last_output_line} != "" ]] ; then
+      echo "# - note the last line of your"
+      echo "#   output did not include a '\n'"
     fi
+    echo '#########################################'
+    echo
   fi
 
 }
@@ -969,7 +964,7 @@ if [[ ${VERSION} == "mips" ]] ; then
        { echo "Subroutine $SUB_NAME not declared \".globl\"" ; exit 1; }
 fi
 if [[ ${VERSION} == "java" ]] ; then 
-  grep -q "public *static .* ${SUB_NAME}(" ${SUB_NAME_FILE}  || 
+  grep -q "public *static .* ${SUB_NAME} *(" ${SUB_NAME_FILE}  || 
        { echo "Subroutine $SUB_NAME not declared \"public static\"." ; exit 1; }
 fi
 if [[ ${VERSION} == "c" ]] ; then 
@@ -1051,10 +1046,13 @@ if [[ $VERSION == "java" ]] ; then
   execution_error="$?"
 fi
 
-
-print_user_output "${execution_error}"
-
 if [[ ${execution_error} == 0 ]] ; then 
-  post_process "${execution_error}"
-fi 
+  print_user_output
+  post_process
+else
+  cat ${OUTPUT_FILE} |  fix_error_messages
+fi
+
+
+
 
