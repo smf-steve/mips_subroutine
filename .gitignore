@@ -1,5 +1,5 @@
 .DSstore
 .DS_Store
 .boot*
-.*_subroutine.bootstrap/.*
+.*_subroutine.bootstrap/
 
