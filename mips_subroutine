@@ -952,21 +952,24 @@ SUB_NAME_FILE="${SUB_NAME}.${LANG_EXT}"
 SUB_NAME=$(basename ${SUB_NAME})
 
 # Command line related error checking
-[ $SUB_NAME != "main" ] || 
+[ ${SUB_NAME} != "main" ] || 
      { echo "File name cannot be \"main.${LANG_EXT}\"." ; exit 1; }
 
 [ -f ${SUB_NAME_FILE} ] || 
      { echo "File \"${SUB_NAME_FILE}\" does not exist." ; exit 1 ; }
 
 if [[ ${VERSION} == "mips" ]] ; then 
-  # Perhaps this should be looking for "."
   grep -q "${SUB_NAME}:" ${SUB_NAME_FILE}  || 
-       { echo "Subroutine $SUB_NAME not declared \".globl\"" ; exit 1; }
+       { echo "Subroutine $SUB_NAME not defined" ; exit 1; }
+  grep -q "\.globl *${SUB_NAME}" ${SUB_NAME_FILE}  || 
+       { echo "Subroutine $SUB_NAME not defined .globl" ; exit 1; }
 fi
+
 if [[ ${VERSION} == "java" ]] ; then 
-  grep -q "public *static .* ${SUB_NAME} *(" ${SUB_NAME_FILE}  || 
-       { echo "Subroutine $SUB_NAME not declared \"public static\"." ; exit 1; }
+  grep -q "public  *static  *int  *${SUB_NAME} *(" ${SUB_NAME_FILE}  || 
+       { echo "Subroutine $SUB_NAME not declared \"public static int\"." ; exit 1; }
 fi
+
 if [[ ${VERSION} == "c" ]] ; then 
   grep -q "${SUB_NAME}:" ${SUB_NAME_FILE}  || 
        { echo "Subroutine $SUB_NAME not defined." ; exit 1; }
