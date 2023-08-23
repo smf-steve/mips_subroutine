@@ -11,7 +11,7 @@
 # }
 
                 .include "macros/syscalls.s"
-	       
+                .globl summation
 
 test:           nop             # A hard code subroutine to test "summation"
                 li $a0, 4
@@ -33,7 +33,7 @@ summation:      nop                     # public static int summation(int $a0)
                 # De-marshall my inputs
                 move $t1, $a0
                 
-                                        # int sum = 0;
+                li $t5, 0               # int sum = 0;
         init:   nop                     # ;
                 li $t2, 1               # int i = 1
                 move $t3, $t2           # $l = i;

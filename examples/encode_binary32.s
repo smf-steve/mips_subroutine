@@ -1,25 +1,20 @@
-        .globl encode_binary32
-        .include "macros/syscalls.s"
+                .globl encode_binary32
+                .include "macros/syscalls.s"
+                .include "macros/bit_manipulation.s"
+test:           nop                
+                li $a0, '+'    # 0x2b (43)
+                li $a1, 0x34E1 # (0011 0100 1110 0001) 
+                li $a2, '-'    # 0x2d   (45)
+                li $a3, 0x29   # (41)
 
-.macro position_of_msb(%reg)
-            li $a0, 0                       #        counter = 0;
-            move $a1, %reg                  #        number = %reg;
-    loop:   beq $a1, $zero, done            # loop:  for(; number != zero ;) {
-              addi $a0, $a0, 1              #           counter ++
-              srl $a1, $a1, 1               #           number = number >> 1;
-            b loop                          #           break loop;
-                                            #        }
-    done:   nop                             # done:  nop
-            move $v0, $a0                   #        $v0 = counter;
-.end_macro
-            
-            li $a0, '+'    # 0x2b (43)
-            li $a1, 0x34E1 # (0011 0100 1110 0001) 
-            li $a2, '-'    # 0x2d   (45)
-            li $a3, 0x29   # (41)
+                jal encode_binary32
+
+                move $a0, $v0
+                li $v0, 17
+                syscall
 
 encode_binary32: nop
-            # Prototype:  encode_binary32( sign, num, expon_sign, expon )
+                # Prototype:  encode_binary32( sign, num, expon_sign, expon )
             # Formal Parameters:
             # a0: sign -- an ASCII character
             # a1: number (representing, in total,:  1.\<mantissa\>) 

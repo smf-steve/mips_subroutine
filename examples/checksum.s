@@ -18,15 +18,11 @@ err_str:        .asciiz "Error Detected!\n\0"
                 .text
                 .globl checksum
 
-                .macro exit(%reg)
-                move $a0, %reg
-                li $v0, 17
-                syscall
-                .end_macro
-
 
 test:           jal checksum
-                exit($v0)
+                move $a0, $v0
+                li $v0, 17
+                syscall
 
 checksum: 
                 # Register Map for this subroutine
@@ -113,6 +109,6 @@ checksum:
                    syscall
                    li $a0, 1                        # $a0 holds the return value of false
      done:      nop
+                move $v0, $a0                       # reposition the intended return value
                 jr $ra                              # return;
-
 

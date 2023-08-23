@@ -15,7 +15,7 @@ str:            .asciiz "Hello World\n" # H,e,l,l,o, ,W,o,r,l,d,\n,\0
                 .globl hello_world
 
 test:           # A hard code subroutine to test "hello_world"
-                jal hello_word
+                jal hello_world
 
                 li $a0, 0       # a0 contains the return value        
                 li $v0, 17      # Service #17: exit with a value
