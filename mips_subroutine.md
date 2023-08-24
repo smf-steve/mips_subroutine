@@ -102,11 +102,6 @@
        $ mips_subroutine func 4#456
        bash: 4#456: value too great for base (error token is "4#456")
 
-    Any output from the user subroutine should ensure a newline ('\n') is the last
-    character printed. 
-
-    This ensures the return value of the function is printed 
-    properly.  (This is fixed)
 
 ### EXIT STATUS
     The mips_subroutine exits with the value of $v0 register.
