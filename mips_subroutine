@@ -306,7 +306,6 @@ cat <<-EOF
                            // proforma '\n'.
     mips.print_d(\$v0);
     mips.print_ci('\n');
-    system.exit(\$v0);
     return;
   }
 }
