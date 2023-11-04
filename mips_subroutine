@@ -42,7 +42,7 @@ PWD_STRING=$(pwd)
 
 
 
-MIPS_OS_INTERFACE="$HOME/repositories/mips_subroutine/java/MIPS_OS_Interface"
+MIPS_OS_INTERFACE="$COMP122_HOME/bin/MIPS_OS_Interface"
 
 cleanup () {
   #  call on a trap on exit
@@ -50,6 +50,13 @@ cleanup () {
   rm -f ${OUTPUT_FILE}
   rm -f ${ASSEMBLER_FILE}
   rm -f ${ERROR_FILE}
+}
+
+
+function rebuild_MIPS_OS_Interface () {
+  ( cd $COMP122_BIN
+    javac MIPS_OS_Interface.java 
+  )
 }
 
 ###########################################################################
@@ -103,9 +110,9 @@ EOF
 #    MARS_JAR:  The location of the MARS jar file
 ###########################################################################
 
-: ${JAVAC:=$(which JAVAC)}
-: ${JAVA:=$(which JAVA)}
-: ${MARS:=$(which MARS)}
+: ${JAVAC:=$(which javac)}
+: ${JAVA:=$(which java)}
+: ${MARS:=$(which mars)}
 
 [[ -n "${JAVA}" ]] || { echo "java command not found!"; exit 1; }
 
@@ -691,7 +698,11 @@ function pretty_print_output () {
     for i in ${SUB_RETURN_LINE} ; do
       case ${SUB_RETURN_TYPE} in
         integer | int | int[] )
-          _decimal=${i}
+          _decimal=${i} 
+          # integers are 32 bits in java and in MIPS, but 64 bits in bash
+          # hence, truncate to 32 bits to address signed numbers
+          (( i = i & 0x00000000FFFFFFFF ))
+
           _hex=$(to_hex 8 ${i} )
           _binary=$(to_binary "${_hex}")
           printf "v0: %10d; 0x%s; 0b%s;\n" "${_decimal}" "${_hex}" "${_binary}"
@@ -740,6 +751,7 @@ execute_java () {
   #  - Possible issue with infinite loops
 
   #cp -f ${MIPS_OS_INTERFACE}.java ${BOOTSTRAP_DIR}
+  rebuild_MIPS_OS_Interface
   cp -f ${MIPS_OS_INTERFACE}.class ${BOOTSTRAP_DIR}
   {   
     javac -classpath ${BOOTSTRAP_DIR} -d ${BOOTSTRAP_DIR} ${BOOTSTRAP_JAVA_FILE} &&
@@ -906,10 +918,12 @@ if [[ $# == 0 ]] ; then
 fi
 
 #### Process CMD LINE
-while getopts hASsr:R:tv option ; do
+while getopts hL:ASsr:R:tv option ; do
     case "${option}" in
         h)  usage_full
             exit 1
+            ;;
+        L)  LINK_FILE=${OPTARG}
             ;;
         A)  ARG_STRUCTURE="array" ;;
         R)  SUB_RETURN_ARRAY="FALSE"
@@ -949,6 +963,9 @@ shift ${OPTIND}
 # # Note that you must run the command in the current working directory of the files
 #
 SUB_NAME_FILE="${SUB_NAME}.${LANG_EXT}"
+[[ -n "${LINK_FILE}" ]] && SUB_NAME_FILE=${LINK_FILE}
+
+
 SUB_NAME=$(basename ${SUB_NAME})
 
 # Command line related error checking
