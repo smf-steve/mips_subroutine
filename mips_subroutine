@@ -13,7 +13,7 @@ case ${0} in
 
      ;;
 
-   *java_subroutine)
+   *j*_subroutine)
      VERSION="java"
      LANG_EXT="j"
      DUMP_X_REGISTERS=""
