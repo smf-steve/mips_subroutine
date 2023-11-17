@@ -1,3 +1,37 @@
+Modify marshal on stack
+   - to use the mips.pop / mips.push macros
+   - modify to be for all three languages
+
+update build_java_source
+   - to call narshal in registers
+   - to call marshal on stack
+
+build_java_source () {
+  # build the class
+  # include all of the .j files
+  # include the entry .j files
+  # build the main subroutine
+  #   call the entry subroutine
+  # close the main subrouine
+  # close the class
+
+
+
+rewrite: build_mips_boot_file
+to be: build_java_source
+
+write: build_c_source
+
+==
+
+build_java_source () {
+  - performs a cat subname_file
+  - this should be cat all files that are part of the - load file
+  - question -- what file is the entry in
+     - one of the files?   
+
+
+
 Consider including a -C option
   -- to include other class files with java code
   -- perhaps, you just need to have the \*.class file in the current directory
