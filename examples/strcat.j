@@ -1,7 +1,7 @@
 
 static char [] buffer = new char[100];
 
-public static int strcat(char [] first, char [] second) {
+public static char [] strcat(char [] first, char [] second) {
 
    int i;
    int j;
@@ -15,6 +15,6 @@ public static int strcat(char [] first, char [] second) {
    buffer[i+j+1] = '\0';
 
    mips.print_s(buffer);
-   return 0;
+   return buffer;
 }
 
