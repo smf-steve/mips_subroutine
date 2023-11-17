@@ -245,6 +245,13 @@ function sub_routine_call () {
 ###########################################################################
 
 build_java_source () {
+  # build the class
+  # include all of the .j files
+  # include the entry .j files
+  # build the main subroutine
+  #   call the entry subroutine
+  # close the main subrouine
+  # close the class
 
 cat <<-EOF
 class ${SUB_NAME} {
@@ -252,7 +259,7 @@ class ${SUB_NAME} {
 
 EOF
 
-cat ${SUB_NAME}.j 
+cat ${SUB_NAME_FILE}
 
 cat <<-EOF
 
