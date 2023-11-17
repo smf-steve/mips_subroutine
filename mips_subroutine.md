@@ -31,8 +31,8 @@
 ### Command Line Options
     The following options are available to manage the input:
 
-      -L : link the enumerated files to be part of the final program.  Note specifying 
-           a directory as causes all .s file to be linked in the final program.
+      -L : load/link the enumerated files to be part of the final program.  Note specifying 
+           a directory causes all .s file to be linked in the final program.
 
       -S : converts each argument to a string. The address of each string
            is then stage in $a0 - $a3, and then onto the stack.
