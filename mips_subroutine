@@ -295,17 +295,33 @@ EOF
          echo "         for (index=0; index < \$a$i.length - 2; index++ ) {"
          echo "           \$a$i[index] = (string_$i).charAt(index);"
          echo "         }"
+         echo "         \$a$i[index] = '\0' ; // the Null character"
          echo "         \$a$i[index+1] = '\7' ; // the Alert character"
          ;;
     esac
   done
 
 echo    ""
-echo -n "    int \$v0 = "     #modify this based upon return type
+
+# Call the subroutine, but first Marshal the args on the stack.
+
+num_a_regs=${#SUB_ARGS_TEXT[@]}
+if (( ${#SUB_ARGS_TEXT[@]} > 4)) ; then
+  num_a_regs=4
+fi
+
+# Marshal the stack arguments:
+for ((i=4; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do 
+  echo     "    mips.push(\$a$i);" 
+done
+
+  echo -n  "    int \$v0 = "     #modify this based upon return type
   echo -n "${SUB_NAME}("
-  for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
+
+  # Marshal in Registers
+  for ((i=0; i < num_a_regs; i++)) ; do
     echo -n "\$a$i"
-    if (( i != ${#SUB_ARGS_TEXT[@]} -1 )) ; then
+    if (( i != num_a_regs -1 )) ; then
       echo -n ", "
     fi
   done
