@@ -1,3 +1,11 @@
+read_s in java returns the strlength
+  but in MIPS this is not the case
+
+  which should I return
+-----  
+
+
+
 Modify marshal on stack
    - to use the mips.pop / mips.push macros
    - modify to be for all three languages
