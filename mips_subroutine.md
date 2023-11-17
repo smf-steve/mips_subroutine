@@ -57,6 +57,7 @@
            - double:  a double precision real number (the value of $f0-$f1()
 
          Array data types are also support (the value of $v0 is the address of the array)
+         (the value of $v1 needs to be the length of the array)
            - int[]:   an array of integers 
            - long[]:  an array of long integers
            - char[]:  an array of characters
