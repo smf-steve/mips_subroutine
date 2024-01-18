@@ -4,84 +4,84 @@
 # Print a value that is in a register  (see syscalls.s)
 #   -  print_<type>(%reg)
 # Print the value with a newline at the end..
-#   - printnl_type
+#   - println_type
 # Print an array of values
-#   - printnl_<type>(%reg, %count)
+#   - println_<type>(%reg, %count)
 
 
-.macro  printnl_d(%reg)
+.macro  println_d(%reg)
         print_d (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_di(%imm)
+.macro  println_di(%imm)
         print_di(%imm)
         print_ci('\n')
 .end_macro
 
-.macro  printnl.s(%reg)
+.macro  println.s(%reg)
         print.s (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl.d(%reg)
+.macro  println.d(%reg)
         print.d(%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_f(%reg)
+.macro  println_f(%reg)
         print_f (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_s(%reg)
+.macro  println_s(%reg)
         print_s (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_si(%label)
+.macro  println_si(%label)
         print_si(%label)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_c(%reg)
+.macro  println_c(%reg)
         print_c (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_ci(%imm)
+.macro  println_ci(%imm)
         print_ci(%reg)
         print_ci('\n')
 .end_macro
 
 
-.macro  printnl_x(%reg)
+.macro  println_x(%reg)
         print_x (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_xi(%imm)
+.macro  println_xi(%imm)
         print_xi(%reg)
         print_ci('\n')
 .end_macro
 
 
-.macro  printnl_t(%reg)
+.macro  println_t(%reg)
         print_t (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_ti(%imm)
+.macro  println_ti(%imm)
         print_ti(%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_u(%reg)
+.macro  println_u(%reg)
         print_u (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  printnl_ui(%imm)
+.macro  println_ui(%imm)
         print_ui(%imm)
         print_ci('\n')
 .end_macro
@@ -89,8 +89,8 @@
 
 
 # Array Macros
-.macro printnl_d(%array, %count)
-            nop  # printnl_d
+.macro println_d(%array, %count)
+            nop  # println_d
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -111,16 +111,16 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro printnl.s(%array, %count)
+.macro println.s(%array, %count)
             # Not Implemented!
 .end_macro
 
-.macro printnl.d(%array, %count)
+.macro println.d(%array, %count)
             # Not Implemented!
 .end_macro
 
-.macro printnl_s(%array, %count)
-            nop  # printnl_s
+.macro println_s(%array, %count)
+            nop  # println_s
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -141,8 +141,8 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro printnl_c(%array, %count)
-            nop  # printnl_c
+.macro println_c(%array, %count)
+            nop  # println_c
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -162,8 +162,8 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro printnl_x(%array, %count)
-            nop  # printnl_x
+.macro println_x(%array, %count)
+            nop  # println_x
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -184,8 +184,8 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro printnl_t(%array, %count)
-            nop  # printnl_t
+.macro println_t(%array, %count)
+            nop  # println_t
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -206,8 +206,8 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro printnl_u(%array, %count)
-            nop  # printnl_u
+.macro println_u(%array, %count)
+            nop  # println_u
             # Well what if the args are in the t registers
             # $t0: %arr
             # $t1: %count
@@ -229,7 +229,7 @@
 .end_macro
 
 
-.macro printnl_register( %name, %reg )
+.macro println_register( %name, %reg )
          .data
 str:     .asciiz %name
          .text
@@ -263,7 +263,7 @@ str:     .asciiz %name
 #   print_c(v, c)  !==  print_wc(v, c)
 #   print_c(v, c)  ===  print_bc(v, n)
 
-# // .macro printnl_a*   arra  y of words of such things
+# // .macro println_a*   arra  y of words of such things
 # // .macro print_w*   array   of words of such thingst1 // .macro print_h*   array   of halfs of such things
 # // .macro print_b*   array   of bytes of such thit1s
 #   t1/  -R byte[]       lb
