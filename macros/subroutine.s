@@ -1,3 +1,24 @@
+.macro call( %sub, %arg0)
+  save_state()
+  push $a0
+  move $a0, %arg0
+  jal %sub
+  pop $a0
+  restore_state()
+.end_macro
+
+.macro call( %sub, %arg0, %arg1)
+  save_state()
+  push $a0 $a1
+  move $a0, %arg0
+  move $a1, %arg1
+  jal %sub
+  pop $a0 $a1
+  restore_state()
+.end_macro
+
+
+
 .macro save_state()
        push($gp, $sp, $fp, $ra)
        push_t_registers()

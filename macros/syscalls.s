@@ -48,8 +48,11 @@
 # |------------------|------|-----------------------|
 # | print_d          |  1   | void ƛ(int);          |
 # | print_di         |  1   | void ƛ(imm);          |
+# | print.s          |  2   | void ƛ(float);        | # to match c1 instructions
+# | print.d          |  3   | void ƛ(double);       | # to match c1 instructions
+# | print_f          |  3   | void ƛ(double);       | # to match printf
 # | print_s          |  4   | void ƛ(&str);         |
-# | print_si         |  4   | void ƛ(&str);         |
+# | print_si         |  4   | void ƛ(label);        |
 # | read_d           |  5   | int  ƛ(void);         |
 # | read_s           |  8   | int  ƛ(&str, int);    |
 # | read_si          |  8   | int  ƛ(&str, imm);    |
@@ -143,8 +146,11 @@
 #
 # | print_d          |  1   | void ƛ(int);          |
 # | print_di         |  1   | void ƛ(int);          |
+# | print.s          |  2   | void ƛ(float);        | # to match c1 instructions
+# | print.d          |  3   | void ƛ(double);       | # to match c1 instructions
+# | print_f          |  3   | void ƛ(double);       | # to match printf
 # | print_s          |  4   | void ƛ(&str);         |
-# | print_si         |  4   | void ƛ(&str);         |
+# | print_si         |  4   | void ƛ(label);        |
 # | print_c          | 11   | void ƛ(byte);         |
 # | print_ci         | 11   | void ƛ(byte);         |
 # | print_x          | 34   | void ƛ(int);          |
@@ -167,6 +173,22 @@
         li $v0, 1
         syscall
         nop                     # The value has been printed to stdout
+.end_macro
+
+.macro print.s(%freg)
+  mov.d $f12, %freg
+  li $v0, 2
+  syscall
+  nop                          # the value has been printed to stdout
+.end_macro
+.macro print.d(%freg)
+  mov.d $f12, %freg
+  li $v0, 3
+  syscall
+  nop                          # the value has been printed to stdout
+.end_macro
+.macro print_f(%freg)
+  print.d(%freg)
 .end_macro
 
 .macro print_s(%reg)
@@ -356,10 +378,3 @@
         li $v0, 17
         syscall
 .end_macro
-
-
-
-
-
-
-
