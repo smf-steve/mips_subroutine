@@ -1,5 +1,28 @@
 # Examples
 
+
+# Test Files:
+  * empty                   : the typcial noop program
+  * hello_world             : the typical printing of "Hello World" to stdout
+  * read_echo_int           : reads an int from stdin, and echo's the value
+  * summation N             : computes the sum of 1, 2, .. N
+  * echo_list N {arg}^N     : echos out the list of command line args
+    - bug: currently push, pop only works with ints, not strings
+  * sum_list  N {arg}^N     :  computes the sum of the command line args
+
+
+
+echo_cat_list N {arg}^N : catenates the cl args into a single string
+
+
+encode_binary32
+checksum 
+dec2bin
+binary32
+strcat
+strcat_return
+strchr
+
 This directory contains a set of MIPS subroutines used for the testing of the mips_subroutine utility.  A key feature of these routines is that they exercise the MIPS Argument Transmission Convention.  This helps to validate that the marshaling of the actual arguments is performed correctly.
 
 The MIPS Argument Transmission Convention is summarized via the following table.  In short, a maximum of 4 words (16 bytes) are stored in registers, with all subsequent values stored on the stack.  The first two floating point values (single or double) are always transmitted in $f12 and $f12, respectively.  Integer values are always placed into the `a` register that corresponding to their argument position. For example, the third (3) argument, if it is an integer value, is placed into `$a2`. 

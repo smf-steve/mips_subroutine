@@ -1,5 +1,8 @@
-## Currently, this does not work.
+catenates the cl args into a single string
 
+
+## Currently, this does not work.
+## Need to save registers
 
                 .data
 buffer:         .space 1024

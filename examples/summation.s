@@ -1,12 +1,12 @@
 # Demonstration MIPS code for the Java subroutine:
 #
-# public static int summation(int $a0) {
+# public static int summation(int N) {
 #
 #   int sum = 0;
-#   for(in i=1; i < $a0 ; i++) {
+#   for(in i=1; i < N ; i++) {
 #     sum += i;
 #   }
-#   mips.print_d(sum);
+#   return sum;
 #
 # }
 
@@ -24,7 +24,7 @@ test:           nop             # A hard code subroutine to test "summation"
 summation:      nop                     # public static int summation(int $a0)
 
                 # bookkeeping
-                # t1: $a0
+                # t1: $a0: N
                 # t2: i
                 # t3: $l
                 # t4: $r
@@ -37,7 +37,7 @@ summation:      nop                     # public static int summation(int $a0)
         init:   nop                     # ;
                 li $t2, 1               # int i = 1
                 move $t3, $t2           # $l = i;
-                move $t4, $a0           # $r = $a0;
+                move $t4, $a0           # $r = N;
         sam:    bgt $t3, $t4, done      # for(; $l < $r ;) {
         body:     nop                   #   ;  
                   add $t5, $t5, $t2     #   sum += i;
@@ -48,6 +48,6 @@ summation:      nop                     # public static int summation(int $a0)
                 b sam                   #   continue;
                                         # }
         done:   nop                     # ;
-                print_d($t5)            # mips.print_d(sum);
+                move $v0, $t5           # return sum;
                 jr $ra
                                 
