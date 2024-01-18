@@ -32,7 +32,8 @@
     The following options are available to manage the input:
 
       -L : load/link the enumerated files to be part of the final program.  Note specifying 
-           a directory causes all .s file to be linked in the final program.
+           shell globing characters has be used
+           e.g. '*.s" denotes all .s files in the current directory are to be included in the final program.
 
       -S : converts each argument to a string. The address of each string
            is then stage in $a0 - $a3, and then onto the stack.
@@ -58,11 +59,12 @@
 
          Array data types are also support (the value of $v0 is the address of the array)
          (the value of $v1 needs to be the length of the array)
-           - int[]:   an array of integers 
-           - long[]:  an array of long integers
-           - char[]:  an array of characters
-           - float[]:  an array of single precision real numbers
-           - double[]: an array of double precision real numbers
+           - int[n]:   an array of integers 
+           - long[n]:  an array of long integers
+           - char[n]:  an array of characters
+           - float[n]:  an array of single precision real numbers
+           - double[n]: an array of double precision real numbers
+           (where n is a number)
 
       -s : summarize the execution of the program 
            e.g., sub(1,2,3) returns $v0
