@@ -14,6 +14,7 @@
 
 
                 .data
+                .align 2        # Set alignment to be on a word boundary
 num:            .space 4        # Space for an integer
         
                 .text
@@ -36,7 +37,11 @@ read_echo_int:  nop
 
                 lw $a0, 0($t0)  # Load the value in main memory at t0 into a0, the value to be printed
                 li $v0, 1       # Service #1:  print decimal integer
-                syscall         
+                syscall   
+
+                li $a0, '\n'    # Load the '\n' character
+                li $v0, 11      # Printout the character
+                syscall 
 
                 move $v0, $a0   # Make the value printed the return value of the subroutine
                 jr $ra

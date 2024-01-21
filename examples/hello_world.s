@@ -9,6 +9,7 @@
 #      - trap to the kernel requesting Service #17
 
                 .data
+                .align 0                # Set alignment to be on byte boundary
 str:            .asciiz "Hello World\n" # H,e,l,l,o, ,W,o,r,l,d,\n,\0
 
                 .text

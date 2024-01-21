@@ -5,6 +5,8 @@ catenates the cl args into a single string
 ## Need to save registers
 
                 .data
+                .align 2  # Ensure we are aligned on word boundaries
+
 buffer:         .space 1024
 
 str0:           .asciiz "str0"

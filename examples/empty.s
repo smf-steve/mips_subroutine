@@ -9,8 +9,11 @@
 # To run the program from the command line
 #   $ mars empty.s
 #
-                .data           
+                .data
                 # insert your data declarations
+
+                .align 2           
+                # ensure your data declarations are aligned appropriately
         
                 .text           
                 # insert your code declarations

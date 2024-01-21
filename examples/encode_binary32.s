@@ -1,6 +1,7 @@
                 .globl encode_binary32
                 .include "macros/syscalls.s"
                 .include "macros/bit_manipulation.s"
+                
 test:           nop                
                 li $a0, '+'    # 0x2b (43)
                 li $a1, 0x34E1 # (0011 0100 1110 0001) 
