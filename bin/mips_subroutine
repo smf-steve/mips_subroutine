@@ -3,28 +3,13 @@
 # trap 0 cleanup
 
 
-
+#AFTER='println_register("$v0:", $v0)'
 
 MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine/
 
 MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
 
 
-### FILE NAME RELATED ENVIRONMENT VARIABLES
-BOOTSTRAP_DIR=".${VERSION}_subroutine.bootstrap"
-mkdir -p ${BOOTSTRAP_DIR}
-
-OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
-ASSEMBLER_FILE="${BOOTSTRAP_DIR}/assembler.output"
-ERROR_FILE="${BOOTSTRAP_DIR}/bootstrap.errors"
-
-BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/${SUB_NAME}.bootstrap.s"
-BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.s"
-
-BOOTSTRAP_JAVA_FILE="${BOOTSTRAP_DIR}/bootstrap.java"
-
-# the PREFIX to simplify error messages
-PWD_STRING=$(pwd)
 
 case ${0} in
    *mips_subroutine)
@@ -46,6 +31,25 @@ case ${0} in
      DUMP_V_REGS=""
      ;;
 esac
+
+
+
+### FILE NAME RELATED ENVIRONMENT VARIABLES
+BOOTSTRAP_DIR=".${VERSION}_subroutine.bootstrap"
+mkdir -p ${BOOTSTRAP_DIR}
+
+OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
+ASSEMBLER_FILE="${BOOTSTRAP_DIR}/assembler.output"
+ERROR_FILE="${BOOTSTRAP_DIR}/bootstrap.errors"
+
+BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/${SUB_NAME}.bootstrap.s"
+BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.s"
+
+BOOTSTRAP_JAVA_FILE="${BOOTSTRAP_DIR}/bootstrap.java"
+
+# the PREFIX to simplify error messages
+PWD_STRING=$(pwd)
+
 
 
 
@@ -143,7 +147,11 @@ SUB_ARGS_TYPES=""          # of the input arguements to the subroutine
 SUB_ARGS_VALUES=""
 
 SUB_RETURN_VALUE=""        # The value and associated type of the return value
-SUB_RETURN_TYPE="integer"  # integer (default value), double, string
+SUB_RETURN_TYPE="word"     # Revised: update notes
+SUB_RETURN_ARRAY=FALSE
+DEFAULT_SUB_RETURN_ARRAY_COUNT="10"
+
+SUB_RETURN_FUNC='println_register($v0)'
 
 
 PARAM_CONVENTION=
@@ -360,31 +368,18 @@ EOF
 # The following functions are used to prepare to MIPS bootstrapping code
 
 function build_mips_data_segment () {
-  echo "${SPACE15} .data"
-  echo ""
-  echo ""
-  echo ""  
-  echo "subroutine:     .asciiz \"${SUB_NAME}\""
-  echo "                # ${SUB_CALL}"
-  echo "                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}"
-  echo ""
-  echo "saved_v0:       .word 0"   # space for v0 and v1
-  echo "saved_v1:       .word 0"
-  echo ""
-  echo "sp_not_restored: .asciiz \"Warning: \$sp was not restored\n.\""
-  echo "fp_not_restored: .asciiz \"Warning: \$fp was not restored\n.\""
-  echo "s0_not_restored: .asciiz \"Error:   \$s0 was not restored\n.\""
-  echo "s1_not_restored: .asciiz \"Error:   \$s1 was not restored\n.\""
-  echo "s2_not_restored: .asciiz \"Error:   \$s2 was not restored\n.\""
-  echo "s3_not_restored: .asciiz \"Error:   \$s3 was not restored\n.\""
-  echo "s4_not_restored: .asciiz \"Error:   \$s4 was not restored\n.\""
-  echo "s5_not_restored: .asciiz \"Error:   \$s5 was not restored\n.\""
-  echo "s6_not_restored: .asciiz \"Error:   \$s6 was not restored\n.\""
-  echo "s7_not_restored: .asciiz \"Error:   \$s7 was not restored\n.\""
-  echo ""
-  echo "${SPACE15} # Layout the command line arguments "
-  echo "                .align 2"
-  echo "argc:           .word  ${#SUB_ARGS_TEXT[@]}"
+  cat <<EOF
+                .data
+  
+subroutine:     .asciiz "${SUB_NAME}"
+                # ${SUB_CALL}"
+                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}
+  
+ 
+# Layout the command line arguments 
+                .align 2
+argc:           .word  ${#SUB_ARGS_TEXT[@]}
+EOF
   echo -n "argv:           .word "
   if (( ${#SUB_ARGS_TEXT[@]} > 0 )) ; then 
     for ((i=0; i < ${#SUB_ARGS_TEXT[@]} -1; i++)) ; do
@@ -420,18 +415,44 @@ function build_mips_data_segment () {
          ;;
 
       string)
+        echo "                 .align 0"
         echo "arg_${i}:          .asciiz \"$_text\""
         ;;
     esac
     echo ""
        
   done
-  echo "                .align 2"
-  echo "saved_sp:       .word 0"
-  echo "                .align 2"
-  echo "saved_float:    .float 1.0"
-  echo "                .align 3"
-  echo "saved_double:   .double 1.0"
+  cat <<EOF
+
+# Create space for register saving
+                .align 2
+saved_sp:       .word 0
+
+                .align 2
+saved_v0:       .word 0   # space for v0 and v1
+saved_v1:       .word 0 
+                .align 3
+saved_double:   .double 1.0
+                .double 1.0
+
+# Create all the output strings
+separator:      .asciiz "#########################################\n"
+message:        .asciiz "# Above is the output from your program\n\n"
+
+sp_warning:     .asciiz "Warning: \$sp was not restored.\n"
+fp_warning:     .asciiz "Warning: \$fp was not restored.\n"
+gp_error:       .asciiz "Error:   \$gp was not restored.\n"
+s0_error:       .asciiz "Error:   \$s0 was not restored.\n"
+s1_error:       .asciiz "Error:   \$s1 was not restored.\n"
+s2_error:       .asciiz "Error:   \$s2 was not restored.\n"
+s3_error:       .asciiz "Error:   \$s3 was not restored.\n"
+s4_error:       .asciiz "Error:   \$s4 was not restored.\n"
+s5_error:       .asciiz "Error:   \$s5 was not restored.\n"
+s6_error:       .asciiz "Error:   \$s6 was not restored.\n"
+s7_error:       .asciiz "Error:   \$s7 was not restored.\n"
+  
+EOF
+
 }
 
 ## Marshaling of input arguments can be perform in two ways:
@@ -557,8 +578,7 @@ function marshal_on_stack () {
       integer)
         if [[ $_for == "code" ]] ; then 
           echo "${SPACE15} li \$t1, $_value # $_text"
-          echo "${SPACE15} addiu \$sp, \$sp, -4 # Push a word"
-          echo "${SPACE15} sw \$t1, 0(\$sp)"
+          echo "${SPACE15} push \$t1"
           echo ""
         else
           echo "${SPACE7} stack: $_value${SPACE7} # $_text"
@@ -623,35 +643,21 @@ function build_mips_source () {
   # Build the Text Segment
   cat <<-EOF
 
-        .text
-        .globl main
-        .include "../macros/syscalls.s"
-        .include "../macros/stack.s"
-        #.include "macros/subroutine.s"
+                .text
+                .globl main
+                .include "${MIPS_SUBROUTINE_HOME}/include/syscalls.s"
+                .include "${MIPS_SUBROUTINE_HOME}/include/stack.s"
+                .include "${MIPS_SUBROUTINE_HOME}/include/subroutine.s"
+                .include "${MIPS_SUBROUTINE_HOME}/include/io.s"
 
-        #.include "macros/standard.s"
+                .macro null
+                  # Print a blank line
+                  li \$a0, '\n'"
+                  li \$v0, 11"
+                  syscall
+                .end_macro
 
-        .macro print_error(%label)
-           print_si(%label)
-        .end_macro
-           
-        .macro null
-           # Print a blank line
-           li \$a0, '\n'"
-           li \$v0, 11"
-           syscall
-        .end_macro
-
-        .macro print_register(%reg)
-           # needs to be updated to be a real register
-           # Print the integer in the given register
-           move \$a0, \$v0
-           li \$v0, 1
-           syscall
-        .end_macro
-
-
-main:   nop      
+  main:         nop      
 EOF
 
   set_registers
@@ -662,6 +668,7 @@ EOF
     marshal_on_stack "code" ${_next_arg}
   fi
 
+  ## Perhaps the default is to set the registers first, nah!
   if [[ -n "${BEFORE}" ]] ; then 
     # --before "call {name} {arg1} {arg2} ...."
     # --before ".include my.macros\n macro(a, b, c, d)"
@@ -690,73 +697,78 @@ EOF
 
   #     1. Call the "SUB_NAME"  
   cat <<-EOF
-        # Make a call to the user's subroutine
-        # save_t_registers
-        # save_special_registers
-        jal ${SUB_NAME}
-        # restore_special_registers
-        # restore_t_registers  
-        # Save the return values
-        #  -- but what if on the stack, we could have two values
-        sw \$v0, saved_v0
-        sw \$v1, saved_v1
+                # Make a call to the user's subroutine
+                    # Don't save nor restore registers to allow for proper testing
+                jal ${SUB_NAME}
         
-        # Return value coulde be in: v0, v1, f0, f2
-        # $f0 and $f2 
+                # Save the possible return values: v0, v1, f0, f2
+                #  -- but what if on the stack, we could have two values
+                sw \$v0, saved_v0
+                sw \$v1, saved_v1
+                
+                la \$v0, saved_double
+                sdc1 \$f0, 0(\$v0)
+                sdc1 \$f2, 8(\$v0)
+        
+                print_si(separator)
+                print_si(message)
+        
+                .macro print_error(%label)
+                    # Update this macro to print to stderr
+                    print_si(%label)
+                .end_macro
+                            
+        
+                # Validate that each S registers and gp was restored correctly
+                li \$gp, 0xDeadBeef
+                beq \$gp, \$s0, tst_s1
+                  print_error(s0_error)
+tst_s1:         beq \$gp, \$s1, tst_s2
+                  print_error(s1_error)
+tst_s2:         beq \$gp, \$s2, tst_s3
+                  print_error(s2_error)
+tst_s3:         beq \$gp, \$s3, tst_s4
+                  print_error(s3_error)
+tst_s4:         beq \$gp, \$s4, tst_s5
+                  print_error(s4_error)
+tst_s5:         beq \$gp, \$s5, tst_s6
+                  print_error(s5_error)
+tst_s6:         beq \$gp, \$s6, tst_s7
+                  print_error(s6_error)
+tst_s7:         beq \$gp, \$s7, tst_d
+                  print_error(s6_error)
+tst_d:          nop
 
+                # Validate usage: of \$sp and \$fp  
+                #   fp should be 0xDeadBeef, \$sp, (\$sp + 4)
+                #     - 0xDeadBeef: fp was not used
+                #     - \$sp: returning 1 word via the convention
+                #     - \$sp + 4: returning 2 words via the convention
+                li \$gp, ${frame_return_bytes}
+                beq \$gp, \$fp, skip1
+                lw \$gp, saved_sp
+                subi \$gp, \$gp, ${frame_return_bytes}
+                beq \$gp, \$fp, skip1
+                  print_error(fp_warning)
+skip1:          nop
 
-        # Validate that each S registers and gp was restored correctly
-        li \$gp, 0xDeadBeef
-        beq \$gp, \$s0, tst_s1
-          print_error(s0_not_restored)
-tst_s1: beq \$gp, \$s1, tst_s2
-          print_error(s1_not_restored)
-tst_s2: beq \$gp, \$s2, tst_s3
-          print_error(s2_not_restored)
-tst_s3: beq \$gp, \$s3, tst_s4
-          print_error(s3_not_restored)
-tst_s4: beq \$gp, \$s4, tst_s5
-          print_error(s4_not_restored)
-tst_s5: beq \$gp, \$s5, tst_s6
-          print_error(s5_not_restored)
-tst_s6: beq \$gp, \$s6, tst_s7
-          print_error(s6_not_restored)
-tst_s7: beq \$gp, \$s7, tst_d
-          print_error(s6_not_restored)
-tst_d:  nop
+                #   sp should be: saved_sp, sp + 4, sp + 8
+                #     - + 0: saved_sp: stack was restored
+                #     - + 4: 1 word return-value is on the stack
+                #     - + 8: 2 word return-value is on the stack
+                #     - but is my responsiblity, but give a warning
+                lw \$gp, saved_sp
+                subi \$gp, \$gp, ${stack_return_bytes}
+                beq \$gp, \$sp, skip2
+                  print_error(sp_warning)
+skip2:          nop
 
-        # Validate usage: of \$sp and \$fp  
-        #   fp should be 0xDeadBeef, \$sp, (\$sp + 4)
-        #     - 0xDeadBeef: fp was not used
-        #     - \$sp: returning 1 word via the convention
-        #     - \$sp + 4: returning 2 words via the convention
-        li \$gp, ${frame_return_bytes}
-        beq \$gp, \$fp, skip1
-        lw \$gp, saved_sp
-        subi \$gp, \$gp, ${frame_return_bytes}
-        beq \$gp, \$fp, skip1
-          print_error(fp_not_restored)
-skip1:  nop
-
-        #   sp should be: saved_sp, sp + 4, sp + 8
-        #     - + 0: saved_sp: stack was restored
-        #     - + 4: 1 word return-value is on the stack
-        #     - + 8: 2 word return-value is on the stack
-        #     - but is my responsiblity, but give a warning
-        lw \$gp, saved_sp
-        subi \$gp, \$gp, ${stack_return_bytes}
-        beq \$gp, \$sp, skip2
-          print_error(sp_not_restored)
-skip2:  nop
-
+                lw \$v0, saved_v0
 EOF
 
 
 
-  # Print a nl for the output "
-  echo "${SPACE15} # Print a blank line after the users output"
-  echo "${SPACE15} print_ci('\n')"
-  echo "${SPACE15} lw \$v0, saved_v0"
+
 
   if [[ -n "${AFTER}" ]] ; then 
     # --after "call {name} {arg1} {arg2} ...."
@@ -765,19 +777,19 @@ EOF
     if [[ -f "${AFTER}" ]] ; then 
       cat "${AFTER}"
     else
-      printf "%b\n" "${AFTER}"
+      printf "${SPACE15} %b\n" "${AFTER}"
     fi
   else
-    printf "print_register(\$v0)\n"
-    printf "lw \$v0, saved_v0\n"   #retore the original value
+    printf "${SPACE15} $SUB_RETURN_FUNC"
   fi
 
   #     1. Exit the value of $v0
   cat <<-EOF
                 
-        # Exit with the value of $v0
-        # After can modify effectively the return value
-        exit(\$v0)
+                # Exit with the value of $v0
+                # After can modify effectively the return value
+                lw \$v0, saved_v0   # restore the original value
+                exit(\$v0)
 
 EOF
 
@@ -1027,23 +1039,51 @@ while getopts hL:ASsr:R:tv option ; do
         A)  ARG_STRUCTURE="array" ;;
         R)  SUB_RETURN_ARRAY="FALSE"
             case ${OPTARG} in
-              null)
-                ;;
-              integer | int | long )
-                ;;
-              double)
-                ;;
-              string)
-                ;;
-              int[] | long[] | double[] | char[] )
-                SUB_RETURN_ARRAY="TRUE"
-                ;;
+               *\[*\] ) 
+                  SUB_RETURN_ARRAY="TRUE"
+                  SUB_RETURN_ARRAY_COUNT=$(sed -n "s/^.*\[\([0-9]*\)\]$/\1/p" <<< "${OPTARG}" )
+                  if [[ -z ${SUB_RETURN_ARRAY_COUNT} ]] ; then
+                    SUB_RETURN_ARRAY_COUNT=${DEFAULT_SUB_RETURN_ARRAY_COUNT}
+                  fi
+                  OPTARG=$(sed "s/^\(.*\)\[.*$/\1/"  <<< ${OPTARG} )
+                  ;;
+            esac
+            case ${OPTARG} in
+              null)  SUB_RETURN_FUNC="" ;;
+              word)  SUB_RETURN_FUNC='println_register($v0)' ;;
 
-              *) echo "invalid return type"
+              integer | int  ) SUB_RETURN_FUNC='println_d($v0)' ;;
+              hex    ) SUB_RETURN_FUNC='println_x($v0)' ;;
+              binary ) SUB_RETURN_FUNC='println_t($v0)' ;;
+
+              float    ) 
+                 if [[ "${SUB_RETURN_ARRAY}" == "FALSE" ]] ; then
+                    SUB_RETURN_FUNC='println.s($f0)' 
+                 else
+                    SUB_RETURN_FUNC='println.s($v0)' 
+                 fi ;;
+              double   ) 
+                 if [[ "${SUB_RETURN_ARRAY}" == "FALSE" ]] ; then
+                    SUB_RETURN_FUNC='println.d($f0)' 
+                 else
+                    SUB_RETURN_FUNC='println.d($v0)' 
+                 fi ;;
+
+              binary32 ) SUB_RETURN_FUNC='println_binary32($v0)' ;;
+
+              char     ) SUB_RETURN_FUNC='println_c($v0)' ;;
+              string   ) SUB_RETURN_FUNC='println_s($v0)' ;;
+
+              long | * )
+                 echo "invalid return type"
                  exit 1 ;;
             esac
+            if [[ "${SUB_RETURN_ARRAY}" == "TRUE" ]] ; then 
+              SUB_RETURN_FUNC=$(sed "s/)/, ${SUB_RETURN_ARRAY_COUNT})/" <<< ${SUB_RETURN_FUNC})
+            fi
             SUB_RETURN_TYPE="${OPTARG}" 
             ;;
+
         S)  ARG_CONVENTION="string" ;;
         s)  SUMMARIZE="TRUE" ;;
         r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
@@ -1178,6 +1218,7 @@ if [[ $VERSION == "java" ]] ; then
   execution_error="$?"
 fi
 
+#exit
 if [[ ${execution_error} == 0 ]] ; then 
   print_user_output
   post_process
