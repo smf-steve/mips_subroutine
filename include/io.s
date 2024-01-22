@@ -230,24 +230,60 @@
 
 
 .macro println_register( %name, %reg )
-         .data
-str:     .asciiz %name
-         .text
-         # if %reg is $v0, which is the default case
-         # the %reg needs to be moved to a safe register
-         move $gp, %reg   
-         print_si(str)
-         print_ci('\t')
-         print_d($gp)
-         print_ci('\t')
-         print_x($gp)
-         print_ci('\t')
-         print_t($gp)
-         print_ci('\n')
-         move %reg, $gp
+             .data
+  str:       .asciiz %name
+             .text
+             # if %reg is $v0, which is the default case
+             # the %reg needs to be moved to a safe register
+             move $gp, %reg   
+             print_si(str)
+             print_ci('\t')
+             print_d($gp)
+             print_ci('\t')
+             print_x($gp)
+             print_ci('\t')
+             print_t($gp)
+             print_ci('\n')
+             move %reg, $gp
 .end_macro
 
 
+.macro println_binary32(%reg)
+             push $t0
+             srl $t0, %reg, 31
+             print_d($t0)
+             srl $t0, %reg, 23
+             andi $t0, $t0, 0xFF
+             print_x($t0)
+             print_ci(' ')
+             andi $t0, %reg, 0x7FFFFF
+             print_x($t2)
+             print_ci(' ')
+             print_ci('\n')             
+             pop $t0
+.end_macro
+
+.macro println_binary32(%reg, %count)
+            nop  # println_u
+            # Well what if the args are in the t registers
+            # $t0: %arr
+            # $t1: %count
+            # $t2: counter
+            # $t3: offset, addr, value
+            push $t0, $t1, $t2, $t3
+            move $t0, %array
+            li $t1, %count
+            li $t2, 0            
+  top:      bge $t2, $t1, done        # while (counter < count)
+              sll $t3, $t2, 2         #   offset = counter * 4
+              add $t3, $t0, $t3       #   addr = %arr + offset
+              lw $t3, 0($t3)          #   value = MEM[addr]
+              print_binary32($t3)
+              print_ci('\n')
+              add $t2, $t2, 1
+            b top
+  done:     pop $t0, $t1, $t2, $t3
+.end_macro
 
 # The above, presumes that each value is in a word -- except print_c
 # Consider adding the size of the element if it is for arrays
