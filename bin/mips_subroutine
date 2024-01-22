@@ -773,9 +773,8 @@ EOF
     else
       printf "${SPACE15} %b\n" "${AFTER}"
     fi
-  else
-    printf "${SPACE15} ${SUB_RETURN_FUNC}"
   fi
+  printf "${SPACE15} ${SUB_RETURN_FUNC}"
 
   #     1. Exit the value of $v0
   cat <<-EOF
