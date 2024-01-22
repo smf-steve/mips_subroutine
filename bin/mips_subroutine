@@ -2,9 +2,6 @@
 
 # trap 0 cleanup
 
-
-#AFTER='println_register("$v0:", $v0)'
-
 MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine/
 
 MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
@@ -766,21 +763,17 @@ skip2:          nop
                 lw \$v0, saved_v0
 EOF
 
-
-
-
-
   if [[ -n "${AFTER}" ]] ; then 
     # --after "call {name} {arg1} {arg2} ...."
     # --after ".include my.macros\n macro(a, b, c, d)"
     # --after "jal {name}"
-    if [[ -f "${AFTER}" ]] ; then 
+    if [[ -f "${AFTER}" ]] ; then
       cat "${AFTER}"
     else
       printf "${SPACE15} %b\n" "${AFTER}"
     fi
   else
-    printf "${SPACE15} $SUB_RETURN_FUNC"
+    printf "${SPACE15} ${SUB_RETURN_FUNC}"
   fi
 
   #     1. Exit the value of $v0
@@ -1029,10 +1022,14 @@ if [[ $# == 0 ]] ; then
 fi
 
 #### Process CMD LINE
-while getopts hL:ASsr:R:tv option ; do
+while getopts ha:b:L:ASsr:R:tv option ; do
     case "${option}" in
         h)  usage_full
             exit 1
+            ;;
+        a)  AFTER="${OPTARG}"
+            ;;
+        b)  BEFORE="${OPTARG}"
             ;;
         L)  LOAD_FILES="${LOAD_FILES} ${OPTARG}"
             ;;
