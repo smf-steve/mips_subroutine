@@ -144,11 +144,11 @@ SUB_ARGS_TYPES=""          # of the input arguements to the subroutine
 SUB_ARGS_VALUES=""
 
 SUB_RETURN_VALUE=""        # The value and associated type of the return value
-SUB_RETURN_TYPE="word"     # Revised: update notes
+SUB_RETURN_TYPE="int"      # Revised: update notes
 SUB_RETURN_ARRAY=FALSE
 DEFAULT_SUB_RETURN_ARRAY_COUNT="10"
 
-SUB_RETURN_FUNC='println_register($v0)'
+SUB_RETURN_FUNC='println_register("$v0", $v0)'
 
 
 PARAM_CONVENTION=
@@ -264,21 +264,21 @@ build_java_source () {
   # close the main subrouine
   # close the class
 
-cat <<-EOF
+  cat <<-EOF
+
 class ${SUB_NAME} {
    static MIPS_OS_Interface mips = new MIPS_OS_Interface();
-
 EOF
 
-# Ensure ensures that the last line in the file terminates 
-# with '\n' as opposed to eof()
-for i in ${LOAD_FILES} ; do
-  echo "// #line 0 \"$i\""
-  cat $i
-  echo
-done
+  # Ensure ensures that the last line in the file terminates 
+  # with '\n' as opposed to eof()
+  for i in ${LOAD_FILES} ; do
+    echo "// #line 0 \"$i\""
+    cat $i
+    echo
+  done
 
-cat <<-EOF
+  cat <<-EOF
 
   public static void main(String[] args) {
   
@@ -318,24 +318,45 @@ EOF
     esac
   done
 
-echo    ""
+  # Call the subroutine, but first Marshal the args on the stack.
 
-# Call the subroutine, but first Marshal the args on the stack.
+  num_a_regs=${#SUB_ARGS_TEXT[@]}
+  if (( ${#SUB_ARGS_TEXT[@]} > 4)) ; then
+    num_a_regs=4
+  fi
 
-num_a_regs=${#SUB_ARGS_TEXT[@]}
-if (( ${#SUB_ARGS_TEXT[@]} > 4)) ; then
-  num_a_regs=4
-fi
+  echo
+  echo "    // Marshal the stack arguments:"
+  for ((i=4; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do 
+    echo     "    mips.push(\$a$i);" 
+  done
 
-# Marshal the stack arguments:
-for ((i=4; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do 
-  echo     "    mips.push(\$a$i);" 
-done
+  echo 
+  echo "    // Call the BEFORE Routine after args have been staged"
+  if [[ -n "${BEFORE}" ]] ; then 
+    if [[ -f "${BEFORE}" ]] ; then 
+      cat "${BEFORE}"
+    else
+      printf "%b\n" "${BEFORE}"
+    fi
+  fi 
 
-  echo -n  "    int \$v0 = "     #modify this based upon return type
+  # Here the only types that should be referenced are
+  # int : default
+  # float, double
+  # string, char[], *[]
+
+  # Following does not work correctly for floating point values
+  if [[ ${SUB_RETURN_ARRAY} == "TRUE" ]] ; then
+    echo -n "    int[] "
+  else
+    echo -n "    ${SUB_RETURN_TYPE} "
+  fi
+
+  echo -n "\$v0 = "     
   echo -n "${SUB_NAME}("
 
-  # Marshal in Registers
+  # Marshal as formal parameters Registers
   for ((i=0; i < num_a_regs; i++)) ; do
     echo -n "\$a$i"
     if (( i != num_a_regs -1 )) ; then
@@ -344,15 +365,25 @@ done
   done
   echo ");"   
 
-cat <<-EOF
+  if [[ ${SUB_RETURN_ARRAY} == "TRUE" ]] ; then
+    echo -n "    int[] "
+  else
+    echo -n "    ${SUB_RETURN_TYPE} "
+  fi
+  echo "\$f0 = \$v0;"
 
-    // Augment this code based upon desired output type
+  echo
+  echo "    // Call the AFTER Routine after args have been staged"  
+  if [[ -n "${AFTER}" ]] ; then 
+    if [[ -f "${AFTER}" ]] ; then 
+      cat "${AFTER}"
+    else
+      printf "%b\n" "    ${AFTER}"
+    fi
+  fi 
 
-    mips.print_ci('\n');   // Print extra '\n' in case the users
-                           // last line does not include the 
-                           // proforma '\n'.
-    mips.print_d(\$v0);
-    mips.print_ci('\n');
+  cat <<EOF
+    mips.${SUB_RETURN_FUNC};
     return;
   }
 }
@@ -1045,26 +1076,29 @@ while getopts ha:b:L:ASsr:R:tv option ; do
                   OPTARG=$(sed "s/^\(.*\)\[.*$/\1/"  <<< ${OPTARG} )
                   ;;
             esac
+            SUB_RETURN_TYPE="int"
             case ${OPTARG} in
-              null)  SUB_RETURN_FUNC="" ;;
-              word)  SUB_RETURN_FUNC='println_register($v0)' ;;
+              null     )  SUB_RETURN_FUNC="" ;;
+              word     )  SUB_RETURN_FUNC='println_register("$v0", $v0)' ;;
 
-              integer | int  ) SUB_RETURN_FUNC='println_d($v0)' ;;
-              hex    ) SUB_RETURN_FUNC='println_x($v0)' ;;
-              binary ) SUB_RETURN_FUNC='println_t($v0)' ;;
+              int      ) SUB_RETURN_FUNC='println_d($v0)' ;;
+              hex      ) SUB_RETURN_FUNC='println_x($v0)' ;;
+              binary   ) SUB_RETURN_FUNC='println_t($v0)' ;;
 
               float    ) 
                  if [[ "${SUB_RETURN_ARRAY}" == "FALSE" ]] ; then
                     SUB_RETURN_FUNC='println.s($f0)' 
                  else
                     SUB_RETURN_FUNC='println.s($v0)' 
-                 fi ;;
+                 fi 
+                 SUB_RETURN_TYPE="float" ;;
               double   ) 
                  if [[ "${SUB_RETURN_ARRAY}" == "FALSE" ]] ; then
                     SUB_RETURN_FUNC='println.d($f0)' 
                  else
                     SUB_RETURN_FUNC='println.d($v0)' 
-                 fi ;;
+                 fi
+                 SUB_RETURN_TYPE="double" ;;
 
               binary32 ) SUB_RETURN_FUNC='println_binary32($v0)' ;;
 
@@ -1078,7 +1112,6 @@ while getopts ha:b:L:ASsr:R:tv option ; do
             if [[ "${SUB_RETURN_ARRAY}" == "TRUE" ]] ; then 
               SUB_RETURN_FUNC=$(sed "s/)/, ${SUB_RETURN_ARRAY_COUNT})/" <<< ${SUB_RETURN_FUNC})
             fi
-            SUB_RETURN_TYPE="${OPTARG}" 
             ;;
 
         S)  ARG_CONVENTION="string" ;;
