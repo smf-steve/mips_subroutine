@@ -665,7 +665,8 @@ EOF
     marshal_on_stack "code" ${_next_arg}
   fi
 
-  ## Perhaps the default is to set the registers first, nah!
+
+  # Called after args have been placed
   if [[ -n "${BEFORE}" ]] ; then 
     # --before "call {name} {arg1} {arg2} ...."
     # --before ".include my.macros\n macro(a, b, c, d)"
@@ -676,6 +677,7 @@ EOF
       printf "%b\n" "${BEFORE}"
     fi
   fi 
+
 
   # Based upon the return type and whether or not we are using the stack
   # we need to modify the value:
@@ -690,7 +692,6 @@ EOF
   #   0 : return via a word
   #   4 : return via a dword
   frame_return_bytes=0xdeadbeef 
-
 
   #     1. Call the "SUB_NAME"  
   cat <<-EOF
