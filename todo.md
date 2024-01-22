@@ -2,26 +2,35 @@ Validate the semantics of read_s
 
 # ToDo:
 
-1. [x] Bugs:
-   - 0b00100100 as a command line arg
-     * ../java_subroutine: line 1149: 0b00100100: value too great for base (error token is "0b00100100")
+1. [ ] io.s --> MIPS_OS_INTERFACE
+1. [ ] println_binary32
 
-1. Bug:
+1. [x] learn how to do -- with getopt/s
+       - C api getopt_line
+       - getopts does not support
+       
+1. [ ] add the --after ability  (do we need it really?)
+
+1. [ ] java:  update to handle -R code generation
+
+1. [ ] Bug:  Java Issue
    - pop needs to be able to work with strings...
      * echo_list.j:16: error: incompatible types: int cannot be converted to char[]
      value = mips.pop();
 
-1. [x] Bug:
-   - MIPS_OS_Interface.{java,class} is force to be in COMP122_BIN
-
-1. Write: 
+1. [ ] Write: 
    - sum_list.s
    - echo_cat_list.{j,s}
 
-1. Cleanup README.md in examples after further along
+1. [ ] Cleanup README.md in examples after further along
 
-1. io.s --> MIPS_OS_INTERFACE
-
+1. [ ]
+   ```mips
+        .macro print_error(%label)
+            # Update this macro to print to stderr
+            print_si(%label)
+        .end_macro
+    ```
 
 ## Command Line Arguments
 
