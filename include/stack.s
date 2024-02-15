@@ -12,18 +12,15 @@
 #      - push $reg1 [, $reg2, ... $reg10 ]
 #      - pop  $reg1 [, $reg2, ... $reg10 ]
 #
-#      - push_t_registers
-#      - pop_t_registers
-#
-#      - push_s_registers
-#      - pop_s_registers
+#      - alloca_i %bytes 
+#      - alloca %reg
 #
 # Note on the ARM ISA
 #    The ARM ISA provides a native push and pop instruction of the following form:
 #      - push { $r1, $r2, $r3 }
 #    The macros define here mimic this operation
 #
-# Operational Description.
+# Operational Description:
 #    On the MIPS ISA, 
 #      - the $sp register holds the address of stored element on top of the stack
 #      - the stack grows downwards in memory
@@ -38,6 +35,11 @@
 #          1. for a push, the $sp is adjusted by the required space
 #          1. relative address is used to store/load registers to/from the stack
 #          1. for a pop, the $sp is adjusted by the required space
+#
+#      - alloca:
+#          1. adjust the $sp value to allocate temporary storage
+#          1. the number of bytes allocated is always a multiple of 4
+#          1. the $sp (and NOT $v0) is used as the return value
 #
 
 ######################
@@ -258,25 +260,32 @@
 .end_macro
 
 
+
 ######################
-# Aggregate Macros
+# Alloc Macros
 
-.macro push_t_registers()
-        nop                     # Push all of the T registers
-        push $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
+.macro alloca_i(%val)
+        li $gp, %val
+        alloc($gp)   
 .end_macro
 
-.macro pop_t_registers()
-        nop                     # Pop all of the T registers
-        pop $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
+.macro alloca(%reg)
+        alloca_adjust $gp, %reg, 0x03    
+        subi $sp, $sp, $gp
 .end_macro
 
-.macro push_s_registers()
-        nop                     # Push all of the S registers
-        push $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
+
+# adjust the amount to be allocated to ensure alignment
+.macro alloca_adjust(%dst, %reg, %mask)
+        # Modify the value of %reg to ensure multiple of 4
+        move %dst, %reg
+        andi $at, %dst, %mask
+        bne $at, $zero, skip
+          # Need to adjust for alignment
+          li $at, %mask
+          nor %dest, $at, $zero
+          addi %dest, %reg, %mask
+          addi %dest, %dest, 1
+skip:   nop
 .end_macro
 
-.macro pop_s_registers()
-        nop                     # Pop all of the S registers
-        pop $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
-.end_macro
