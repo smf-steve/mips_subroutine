@@ -10,7 +10,7 @@
 #
 # }
 
-                .include "macros/syscalls.s"
+                .include "include/syscalls.s"
                 .globl summation
 
 test:           nop             # A hard code subroutine to test "summation"

@@ -6,8 +6,10 @@
 #   1. the exit syscall is explicitly invoked
 #   1. the process is then shutdown
 #
-# To run the program from the command line
-#   $ mars empty.s
+#
+# You can test the hello_world subroutine via the mips_subroutine facility 
+#
+# $ mips_subroutine empty
 #
                 .data
                 # insert your data declarations

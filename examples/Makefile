@@ -30,5 +30,12 @@ echo_list: echo_list.j echo_list.s
 	#mips_subroutine echo 6 $(STR_INPUT)
 	java_subroutine echo 6 $(STR_INPUT)
 
-read_echo_int: read_echo_int.s
-	mips_subroutine read_echo_int <<< 5
+.PHONY: binaryReal
+binaryReal:
+	cd binaryReal/java ; make test_java	
+	cd binaryReal/mips ; make test_mips
+
+.PHONY: binary32
+binary32:
+	cd binary32 ; make test_java	
+	cd binary32 ; make test_mips

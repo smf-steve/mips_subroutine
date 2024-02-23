@@ -7,7 +7,11 @@
 #      - load the lval of str (i.e., its address) into a0
 #      - load the value 4 into v0 with 
 #      - trap to the kernel requesting Service #17
-
+#
+# You can test the hello_world subroutine via the mips_subroutine facility 
+#
+# $ mips_subroutine hello_world
+#
                 .data
                 .align 0                # Set alignment to be on byte boundary
 str:            .asciiz "Hello World\n" # H,e,l,l,o, ,W,o,r,l,d,\n,\0
@@ -28,5 +32,6 @@ hello_world:    nop
                 li $v0, 4       # Service #4: print string
                 syscall         
 
+                li $v0, 0       # return the value "0" for success
                 jr $ra          # Return from the subroutine
 
