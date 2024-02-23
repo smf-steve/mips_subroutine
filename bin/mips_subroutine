@@ -139,6 +139,8 @@ SUB_NAME_FILE=""           # The default name of the file containing $SUB_NAME
 LOAD_FILES=""              # The list of files to be load
 SUB_CALL=""                # The actual subroutine call, e.g., sub(1, 2, 3)
 
+FRAME_TYPE="ad-hoc"        # The default frame for subroutine calling
+
 SUB_ARGS_TEXT=""           # A set of arrays to represent the text, type, and value
 SUB_ARGS_TYPES=""          # of the input arguements to the subroutine
 SUB_ARGS_VALUES=""
@@ -676,7 +678,7 @@ function build_mips_source () {
                 .globl main
                 .include "${MIPS_SUBROUTINE_HOME}/include/syscalls.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/stack.s"
-                .include "${MIPS_SUBROUTINE_HOME}/include/subroutine.s"
+                .include "${MIPS_SUBROUTINE_HOME}/include/${FRAME_TYPE}_frames.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/io.s"
 
                 .macro null
@@ -1057,7 +1059,7 @@ if [[ $# == 0 ]] ; then
 fi
 
 #### Process CMD LINE
-while getopts ha:b:L:ASsr:R:tv option ; do
+while getopts ha:b:L:f:ASsr:R:tv option ; do
     case "${option}" in
         h)  usage_full
             exit 1
@@ -1068,6 +1070,18 @@ while getopts ha:b:L:ASsr:R:tv option ; do
             ;;
         L)  LOAD_FILES="${LOAD_FILES} ${OPTARG}"
             ;;
+
+        f)  case "${OPTARG}" in
+               ad-hoc | registers | full )
+                  FRAME_TYPE="{OPTARG}"
+                  ;;
+               * )
+                  echo "Unknown Frame type"
+                  exit 1
+                  ;;
+            esac
+            ;;
+
         A)  ARG_STRUCTURE="array" ;;
         R)  SUB_RETURN_ARRAY="FALSE"
             case ${OPTARG} in
