@@ -325,6 +325,7 @@ EOF
     num_a_regs=4
   fi
 
+
   echo
   echo "    // Marshal the stack arguments:"
   for ((i=4; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do 
@@ -909,8 +910,11 @@ execute_mips () {
   #  - sm: start with global main
   #  - se1: simulation run: error 1, if linkage error.
   #  - ae2: assemble run: error 1, if syntax error.
-  ${MARS} 10000 nc sm se1 ae1 ${DUMP_REGISTERS} \
-       ${BOOTSTRAP_FILE} ${LOAD_FILES} > ${OUTPUT_FILE} 2>&1
+
+  # Post Processing only needs to be performed in case of a linkage error
+  ${MARS} 10000 nc sm se1 ae1 \
+       ${BOOTSTRAP_FILE} ${LOAD_FILES} 
+  # > ${OUTPUT_FILE} 2>&1
 
   return $?
 }
@@ -1248,10 +1252,11 @@ if [[ $VERSION == "java" ]] ; then
   execution_error="$?"
 fi
 
-#exit
+exit
 if [[ ${execution_error} == 0 ]] ; then 
-  print_user_output
-  post_process
+  #print_user_output
+  #post_process
+  :
 else
   cat ${OUTPUT_FILE} |  fix_error_messages
 fi
