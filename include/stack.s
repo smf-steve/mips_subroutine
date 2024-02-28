@@ -15,6 +15,13 @@
 #      - alloca_i %bytes 
 #      - alloca %reg
 #
+# Aggregate macros:
+#
+#       - push_t_registers
+#       - pop_t_registers
+#       - push_s_registers
+#       - pop_s_registers
+#
 # Note on the ARM ISA
 #    The ARM ISA provides a native push and pop instruction of the following form:
 #      - push { $r1, $r2, $r3 }
@@ -262,11 +269,11 @@
 
 
 ######################
-# Alloc Macros
+# Alloca Macros
 
 .macro alloca_i(%val)
         li $gp, %val
-        alloc($gp)   
+        alloca($gp)   
 .end_macro
 
 .macro alloca(%reg)
@@ -283,9 +290,31 @@
         bne $at, $zero, skip
           # Need to adjust for alignment
           li $at, %mask
-          nor %dest, $at, $zero
-          addi %dest, %reg, %mask
-          addi %dest, %dest, 1
+          nor %dst, $at, $zero
+          addi %dst, %reg, %mask
+          addi %dst, %dst, 1
 skip:   nop
 .end_macro
 
+
+
+## Aggregate macros to save/restore registers
+.macro push_t_registers()
+        nop                     # Push all of the T registers
+        push $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
+.end_macro
+
+.macro pop_t_registers()
+        nop                     # Pop all of the T registers
+        pop $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
+.end_macro
+
+.macro push_s_registers()
+        nop                     # Push all of the S registers
+        push $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
+.end_macro
+
+.macro pop_s_registers()
+        nop                     # Pop all of the S registers
+        pop $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
+.end_macro
