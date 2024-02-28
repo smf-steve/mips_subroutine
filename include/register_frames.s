@@ -89,25 +89,32 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
 # Questions:
 #   - Who is responsible, the Caller or the Callee, for pushing formal arguments onto the stack?
 #     * the Caller
+#
 #   - Who is responsible for popping the arguments of the stack?
 #     * the Caller
+#
 #   - Are varargs function supported?
 #     * Yes, and this implies that the Caller is responsible for pushing and popping formal arguments.
+#
 #   - Is alloca supported?
 #     * Yes, alloca allows the programmer to allocate additional space on the stack for dynamic data.
+#
 #   - Who is responsible for saving which registers?
 #     - Using the MIPS convention:
 #       * The Caller is responsible for saving the T registers
 #       * The Callee is responsible for saving the S registers
 #       * The Callee is responsible for saving any used special registers: i.e., $ra, $fp
+#
 #   - Who is responsible for setting the frame pointer?
 #     * Typically, the Callee is responsible, BUT we decided the Caller is responsible
 #       - Logic is:  We provide the subroutine with: 
-#         * formal inputs, space for return values, and a pointer to this space (i.e., the $fp)
-##   - Where is the frame pointer set:  start of the frame, at arg0, or other?
+#         * formal inputs, space for the return value, and a pointer to this space (i.e., the $fp)
+#
+#   - Where is the frame pointer set:  start of the frame, at arg0, or other?
 #     * The frame pointer is set to the return value, thus
 #       1. Formals are reference as:  pos($fp)
 #       1. Locals are reference as:   neg($fp)
+#
 #   - Can special rules be used for leaf nodes for optimization purposes?
 #     * Yes, specific defined steps can be eliminated
 #   
@@ -120,11 +127,12 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
 #   - Can registers be used for parameter passing?
 #     * Yes, $a0 ... $a3 for formal arguments.
 #     * Yes, $v0 ... $v1 for return values.
+#
 #   - Can both $v0 and $v0 be used to return values
 #     * Yes, but only for the simplified form  
 #     * No, for the full frame structure.  The $v0 value can be a pointer to actual return value
 #
-
+#
 # FRAME Layout
 #
 # See below for a picture layout of the Frame
@@ -234,14 +242,15 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
 #               ####################################################
 #               # Subroutine Setup
 #
-#               add_locals 3                                    # Space for x, y, and z 
-#               push $ra                                        # (opt): Unless this is a leaf node
-#               push_s_registers                                # Save the "Callee" saved registers
-#               demarshal_inputs $t0, $t1, $t2, $t3
+#               add_locals 3                                    # Space for locals
+#               push $ra                                        # (For Non-leaf): Unless this is a leaf node
+#               push_s_registers                                # (For Non-leaf) ave the "Callee" saved registers
+#               demarshal_inputs $t0, $t1, $t2, $t3             # 
 #
 #               ####################################################
-#               # ad-hoc frame: pop the additional args off the stack into locals
-#               # full frame: access via the $fp pointer into locals
+#               # ad-hoc frame:   pop the additional args off the stack into locals
+#               # register frame: access additional args from stack via $fp
+#               # full frame:     access all args  from the stack via the $fp
 #
 #               < Main Subroutine Code >
 #
@@ -265,11 +274,11 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
 #               ####################################################
 #               # The Pre-call
 #
-#               marshal_inputs({arg1}.. {arg3})
+#               marshal_inputs({arg0}.. {arg3})
 #               push_t_registers()
 #               push $fp
-#               stage_formals({arg4} ... {argN})
-#               push $v0                                        # Space for return: alloca_i(4) -- always
+#               stage_formals({arg0} ... {argN-1})
+#               alloc_return                                    # Space for return: alloca_i(4) -- always
 #
 #               ####################################################
 #               # The Call
@@ -281,57 +290,210 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
 #               ####################################################
 #               # The Post-call
 #
-#               pop $v0                                         # Only if return is on the stack    
-#               unstage_formals({arg4} ... {argN}) 
+#               unstage_return $v0                              # Only if return is on the stack    
+#               unstage_formals({arg0} ... {argN-1}) 
 #               pop $fp
 #               pop_t_registers()                               # Restore T registers 
 #               demarshal_return({reg})                         
 #               ####################################################
 
 
+# Registers Frame: 
+#   - Registers are used
+#   - All args have space on the stack
 
 
-.macro sub_setup()
-        nop    # Only used with the JAVA version
-        # the Java compiler effectively does the necessary steps
-.end_macro
-
-.macro sub_cleanup(%retval)
-        move $v0 %retval  # Only used with the JAVA version
-        # the Java Compiler effectively does the necessary steps
-.end_macro
-
-.macro sub_precall
-       # This is equivalent to pushing the args
-.end_macro
-
-.macro sub_postcall
-      # This is equivalen to poping the args
-      # and staging the $v0 value
-      move $v0, 
-.end_macro
-
-# Macros for IN_REG
-#    - for ON_STACK approach, these are NOPs
-.macro marshal_inputs(%arg0, %arg1, %arg2, %arg3)
-        move $a0, %arg0
-        move $a1, %arg1
-        move $a2, %arg2
-        move $a3, %arg3
-.end_macro
-.macro demarsh_inputs(%arg0, %arg1, %arg2, %arg3)
-        move %arg0, $a0
-        move %arg1, $a1
-        move %arg2, $a2
-        move %arg3, $a3
-.end_macro
-
-
+## Add Locals
 .macro add_locals(%count)
         addiu  $sp, $sp, -%count
 .end_macro
-.macro add_locals(%count)
+.macro remove_locals(%count)
         subiu  $sp, $sp, %count
+.end_macro
+
+
+
+##  Marshal Inputs
+.macro marshal_inputs(%arg0, %arg1, %arg2, %arg3)
+        move $a3, %arg3
+        move $a2, %arg2
+        move $a1, %arg1
+        move $a0, %arg0
+.end_macro
+.macro marshal_inputs(%arg0, %arg1, %arg2)
+        move $a2, %arg2
+        move $a1, %arg1
+        move $a0, %arg0
+.end_macro
+.macro marshal_inputs(%arg0, %arg1)
+        move $a1, %arg1
+        move $a0, %arg0
+.end_macro
+.macro marshal_inputs(%arg0)
+        move $a0, %arg0
+.end_macro
+.macro marshal_inputs()
+.end_macro
+
+##  Demarshal Inputs
+.macro demarshal_inputs(%arg0, %arg1, %arg2, %arg3)
+        move %arg3, $a3
+        move %arg2, $a2
+        move %arg1, $a1
+        move %arg0, $a0
+.end_macro
+.macro demarshal_inputs(%arg0, %arg1, %arg2)
+        move %arg3, $a3
+        move %arg2, $a2
+        move %arg1, $a1
+        move %arg0, $a0
+.end_macro
+.macro demarshal_inputs(%arg0, %arg1)
+        move %arg1, $a1
+        move %arg0, $a0
+.end_macro
+.macro demarshal_inputs(%arg0)
+        move %arg0, $a0
+.end_macro
+.macro demarshal_inputs()
+.end_macro
+
+
+
+## Stage Formals
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, arg8)
+       addiu $sp, $sp, -36
+       sw %arg8, 32($sp)
+       sw %arg7, 28($sp)
+       sw %arg6, 24($sp)
+       sw %arg5, 20($sp)
+       sw %arg4, 16($sp)
+       # arg0 .. arg3 are marshaled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7)
+       addiu $sp, $sp, -32
+       sw %arg7, 28($sp)
+       sw %arg6, 24($sp)
+       sw %arg5, 20($sp)
+       sw %arg4, 16($sp)
+       # arg0 .. arg3 are marshaled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6)
+       addiu $sp, $sp, -28
+       sw %arg6, 24($sp)
+       sw %arg5, 20($sp)
+       sw %arg4, 16($sp)
+       # arg0 .. arg3 are marshaled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5)
+       addiu $sp, $sp, -24
+       sw %arg5, 20($sp)
+       sw %arg4, 16($sp)
+       # arg0 .. arg3 are marshaled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4)
+       addiu $sp, $sp, -20
+       sw %arg4, 16($sp)
+       # arg0 .. arg3 are marshaled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3)
+       addiu $sp, $sp, -16
+       # arg0 .. arg3 are marshalled in registers
+       # sw %arg3, 12($sp)
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+
+.end_macro
+.macro stage_formals(%arg0, %arg1, %arg2)
+       addiu $sp, $sp, -12
+       # arg0 .. arg2 are marshaled in registers
+       # sw %arg2,  8($sp)
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0, %arg1)
+       addiu $sp, $sp, -8
+       # arg0 .. arg1 are marshaled in registers
+       # sw %arg1,  4($sp)
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals(%arg0)
+       addiu $sp, $sp, -4
+       # arg0 .. arg1 are marshaled in registers
+       # sw %arg0,  0($sp)
+.end_macro
+.macro stage_formals()
+.end_macro
+
+## UnStage Formals
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, arg8)
+       subiu $sp, $sp, -36
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7)
+       subiu $sp, $sp, -32
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6)
+       subiu $sp, $sp, -28
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5)
+       subiu $sp, $sp, -24
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4)
+       subiu $sp, $sp, -20
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3)
+       subiu $sp, $sp, -16
+.end_macro
+.macro unstage_formals(%arg0, %arg1, %arg2)
+       subiu $sp, $sp, -12
+.end_macro
+.macro unstage_formals(%arg0, %arg1)
+       subiu $sp, $sp, -8
+.end_macro
+.macro unstage_formals(%arg0)
+       subiu $sp, $sp, -4
+.end_macro
+.macro unstage_formals()
+.end_macro
+
+## Alloc Return
+.macro alloc_return() 
+        push $zero
+.end_macro
+
+.macro stage_return(%reg) 
+        move $v0, %reg 
+.end_macro
+
+.macro unstage_return(%reg)
+.end_macro
+
+.macro set_frame(%fp, %sp)
+        move %fp, %sp
+.end_macro
+.macro unset_frame(%fp)
 .end_macro
 
 
@@ -339,102 +501,6 @@ For both full and ad-hoc -- we ALWAYS use the registers for parameter passing
         move $v0, %reg
 .end_macro
 .macro demarshal_return(%retval)
-        move %retval, $v0 
-.end_macro
-
-
-.macro set_frame(%fp, %sp)
-        move %fp, %sp
-.end_macro
-.macro unset_frame(%fp)
-        nop
-.end_macro
-
-
-## For IN_REGS approach
-#    - for ON_STACK approach,  arg4 --> arg0 and stack offset is changed
-#    
-.macro stage_formals(%arg4, arg5, %arg6, %arg7, arg8)
-       addiu $sp, $sp, -36
-       lw arg8, 32($sp)
-       lw arg7, 28($sp)
-       lw arg6, 24($sp)
-       lw arg5, 20($sp)
-       lw arg4, 16($sp)
-.end_macro
-.macro stage_formals(%arg4, arg5, %arg6, %arg7)
-       addiu $sp, $sp, -32
-       lw arg7, 28($sp)
-       lw arg6, 24($sp)
-       lw arg5, 20($sp)
-       lw arg4, 16($sp)
-.end_macro
-.macro stage_formals(%arg4, arg5, %arg6)
-       addiu $sp, $sp, -28
-       lw arg6, 24($sp)
-       lw arg5, 20($sp)
-       lw arg4, 16($sp)
-.end_macro
-.macro stage_formals(%arg4, arg5)
-       addiu $sp, $sp, -24
-       lw arg5, 20($sp)
-       lw arg4, 16($sp)
-.end_macro
-.macro stage_formals(%arg4)
-       addiu $sp, $sp, -20
-       lw arg4, 16($sp)
-.end_macro
-.macro stage_formals()
-       addiu $sp, $sp, -16
-.end_macro
-
-
-## For IN_REGS approach
-#    - for ON_STACK approach,  arg4 --> arg0 and stack offset is changed
-#
-.macro unstage_formals(%arg4, arg5, %arg6, %arg7, arg8)
-       subiu $sp, $sp, -36
-.end_macro
-.macro unstage_formals(%arg4, arg5, %arg6, %arg7)
-       subiu $sp, $sp, -32
-.end_macro
-.macro unstage_formals(%arg4, arg5, %arg6)
-       subiu $sp, $sp, -28
-.end_macro
-.macro unstage_formals(%arg4, arg5)
-       subiu $sp, $sp, -24
-.end_macro
-.macro unstage_formals(%arg4)
-       subiu $sp, $sp, -20
-.end_macro
-.macro unstage_formals()
-       subiu $sp, $sp, -16
-.end_macro
-
-
-.macro stage_return 
-        sw $v0 -4($sp) 
-.end_macro
-
-
-## Aggregate macros to save/restore registers
-.macro push_t_registers()
-        nop                     # Push all of the T registers
-        push $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
-.end_macro
-
-.macro pop_t_registers()
-        nop                     # Pop all of the T registers
-        pop $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7, $t8, $t9
-.end_macro
-
-.macro push_s_registers()
-        nop                     # Push all of the S registers
-        push $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
-.end_macro
-
-.macro pop_s_registers()
-        nop                     # Pop all of the S registers
-        pop $s0, $s1, $s2, $s3, $s4, $s5, $s6, $s7
+        move %reg, $v0
 .end_macro
 
