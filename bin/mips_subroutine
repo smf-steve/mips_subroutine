@@ -458,6 +458,7 @@ EOF
 # Create space for register saving
                 .align 2
 saved_sp:       .word 0
+saved_fp:       .word 0
 
                 .align 2
 saved_v0:       .word 0   # space for v0 and v1
@@ -472,7 +473,6 @@ message:        .asciiz "# Above is the output from your program\n\n"
 
 sp_warning:     .asciiz "Warning: \$sp was not restored.\n"
 fp_warning:     .asciiz "Warning: \$fp was not restored.\n"
-gp_error:       .asciiz "Error:   \$gp was not restored.\n"
 s0_error:       .asciiz "Error:   \$s0 was not restored.\n"
 s1_error:       .asciiz "Error:   \$s1 was not restored.\n"
 s2_error:       .asciiz "Error:   \$s2 was not restored.\n"
@@ -488,7 +488,7 @@ EOF
 
 ## Marshaling of input arguments can be perform in two ways:
 #    - marshal_in_registers:  which utilizes register conforming to the MIPS convention
-#    - marshal_on_stack:      which utilizes the stack in the traditional way for "additional values"
+#    - stage_on_stack:        which utilizes the stack in the traditional way for "additional values"
 
 function marshal_in_registers () {
   # This function can generate output for both code or documentation purposes
@@ -498,7 +498,7 @@ function marshal_in_registers () {
 
   if [[ $_for == "code" ]] ; then 
     echo ""
-    echo "${SPACE15}  # Marshal the input arguments into the registers"
+    echo "${SPACE15} nop # Marshal the input arguments into the registers"
   fi
 
   if [[ ${ARG_STRUCTURE} == "array" ]] ; then
@@ -545,17 +545,17 @@ function marshal_in_registers () {
           fi
           ;;
   
-        char)
+        char )
           if [[ $_for == "code" ]] ; then 
-            echo "${SPACE15} li \$a${i}, '$_value'${SPACE15} # '$_text'"
+            echo "${SPACE15} lb \$a${i}, arg_${i}${SPACE15} # '$_text'"
           else
             echo "${SPACE7} a${i}:    '$_value$'{SPACE7} # '$_text'"
           fi
           ;;
 
-        integer)
+        integer )
           if [[ $_for == "code" ]] ; then 
-            echo "${SPACE15} li \$a${i}, $_value${SPACE15} # $_text"
+            echo "${SPACE15} lw \$a${i}, arg_${i}${SPACE15} # $_text"
           else
             echo "${SPACE7} a${i}:    $_value${SPACE7} # $_text"
           fi
@@ -575,20 +575,20 @@ function marshal_in_registers () {
 }
 
 
-function marshal_on_stack () {
+function stage_on_stack () {
   # This function can generate output for both code or documentation purposes
 
   _for="$1"     # _for = "code" | "documentation"
-  _arg_num="$2"  # The first argument that is placed on the stack
+  _first_arg="$2"  # The first argument that is placed on the stack
 
   [[ -z $_for ]] && { echo internel error; exit 2; }  
 
   if [[ $_for == "code" ]] ; then 
     echo ""
-    echo "${SPACE15} # Marshal the remaining input arguments onto the stack"
+    echo "${SPACE15} nop # Stage the remaining input arguments onto the stack"
   fi
 
-  for (( ; _arg_num < ${#SUB_ARGS_TEXT[@]} ; _arg_num++ )) ; do
+  for (( _arg_num = ${#SUB_ARGS_TEXT[@]} ; _arg_num >= _first_arg ; _arg_num --)) ; do
     _text=${SUB_ARGS_TEXT[${_arg_num}]}
     _type=${SUB_ARGS_TYPES[${_arg_num}]}
     _value=${SUB_ARGS_VALUES[${_arg_num}]}
@@ -633,27 +633,30 @@ function marshal_on_stack () {
 function set_registers () {
   # Set values in the registers to allow for proper testing
   # T registers are random to prevent well know values to be assigned
-  # S, FP and GP registers are set to DeadBeef to ensure they are restored
+  # S, FP and GP registers are set to 0xDead to ensure they are restored
   # SP value is saved to later test if it was restored correctly
   echo ""
-  echo "${SPACE15} # Set the T registers to be random values"
+  echo "${SPACE15} nop        # Set the T registers to be random values"
   for ((i=0; i <= 9 ; i++ )) ; do
    echo "${SPACE15} li \$t${i}, ${RANDOM}"
   done
   echo ""
-  echo "${SPACE15} # Set the S registers to 0xDeadBeef"
+  echo "${SPACE15} nop        # Set the S registers to 0xDead"
   for ((i=0; i <= 7 ; i++ )) ; do
-   echo "${SPACE15} li \$s${i}, 0xDeadBeef"
+   echo "${SPACE15} li \$s${i}, 0xDead"
   done
 
-  echo ""
-  echo "${SPACE15} # Set the FP and GP registers"
-  echo "${SPACE15} li \$fp, 0xDeadBeef"
-  echo "${SPACE15} li \$gp, 0xDeadBeef"
+  # echo ""
+  # echo "${SPACE15} # Set the FP and GP registers"
+  # echo "${SPACE15} li \$fp, 0xDead"
+  # echo "${SPACE15} li \$gp, 0xDead"
 
   echo ""
-  echo "${SPACE15} # Save the SP registers"
-  echo "${SPACE15} sw \$sp, saved_sp"
+  echo "${SPACE15} # Save the SP and FP registers, as appropriate"
+  if [[ ${FRAME_TYPE} != "ad-hoc" ]] ; then 
+    echo "${SPACE15} sw \$sp, saved_sp"
+  fi
+  echo "${SPACE15} sw \$fp, saved_fp"
 }
 
 function build_mips_source () {
@@ -681,26 +684,58 @@ function build_mips_source () {
                 .include "${MIPS_SUBROUTINE_HOME}/include/${FRAME_TYPE}_frames.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/io.s"
 
-                .macro null
-                  # Print a blank line
-                  li \$a0, '\n'"
-                  li \$v0, 11"
-                  syscall
-                .end_macro
-
   main:         nop      
 EOF
 
-  set_registers
-  marshal_in_registers "code"
-  _next_arg="$?"
+#  Make the appropriate call the subroutine to be tested
 
-  if (( _next_arg <= ${#SUB_ARGS_TEXT[@]} )) ; then
-    marshal_on_stack "code" ${_next_arg}
-  fi
+   # The Pre-call
 
+   # marshal_inputs $t0, $t1, $t2, $t3 
+   # ~push_t_registers~
+   # ~push $fp~
+   # stage_formals $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7
+   # alloc_return                                    # Space for return: alloca_i(4)
 
-  # Called after args have been placed
+  # Marshal_inputs
+  case ${FRAME_TYPE} in 
+    ad-hoc )
+      echo "${SPACE15} nop # \"${SUB_NAME}\" must to restore stack to here"
+      echo "${SPACE15} sw \$sp, saved_sp"
+
+      marshal_in_registers "code"
+      _next_arg="$?"
+    ;;
+    register )
+      marshal_in_registers "code"
+      _next_arg="$?"
+    ;;
+    full )
+      _next_arg=0
+    ;;
+  esac
+
+  # Stage Formals
+  case ${FRAME_TYPE} in
+    ad-hoc )
+      stage_on_stack "code" ${_next_arg}
+      ;;
+    register )
+      stage_on_stack "code" ${_next_arg}
+      # make space for the first four args
+      echo "${SPACE15} subiu \$sp, \$sp, 16"
+      ;;
+    full )
+      stage_on_stack "code" 0
+      ;;
+  esac
+
+  echo "${SPACE15} alloc_return"
+  echo "${SPACE15} set_frame"
+
+  set_registers     # for testing purposes
+
+  # Make the call to the BEFORE after everything has been staged correctly.
   if [[ -n "${BEFORE}" ]] ; then 
     # --before "call {name} {arg1} {arg2} ...."
     # --before ".include my.macros\n macro(a, b, c, d)"
@@ -712,6 +747,40 @@ EOF
     fi
   fi 
 
+  #     1. Call the "SUB_NAME"  
+  cat <<-EOF
+
+                jal ${SUB_NAME}
+                sw \$v0, saved_v0      # Save this value, it may be needed?
+
+EOF
+
+
+  cat <<-EOF                
+
+EOF
+
+  # Note that the AFTER routine MUST place the original or revised return value into $v0
+  if [[ -z "${AFTER}" ]] ; then 
+     echo "${SPACE15} jal validate"
+  else
+    # --after "call {name} {arg1} {arg2} ...."
+    # --after ".include my.macros\n macro(a, b, c, d)"
+    # --after "jal {name}"
+    echo
+    echo  "${SPACE15} ############## AFTER ##################"
+    if [[ -f "${AFTER}" ]] ; then
+      cat "${AFTER}"
+    else
+      printf "${SPACE15} %b\n" "${AFTER}"
+    fi
+    echo
+  fi
+  echo "${SPACE15} exit(\$v0)"
+
+
+
+ # Change the following to be a case statement based upon return type
 
   # Based upon the return type and whether or not we are using the stack
   # we need to modify the value:
@@ -727,32 +796,32 @@ EOF
   #   4 : return via a dword
   frame_return_bytes=0xdeadbeef 
 
-  #     1. Call the "SUB_NAME"  
-  cat <<-EOF
-                # Make a call to the user's subroutine
-                    # Don't save nor restore registers to allow for proper testing
-                jal ${SUB_NAME}
-        
-                # Save the possible return values: v0, v1, f0, f2
-                #  -- but what if on the stack, we could have two values
-                sw \$v0, saved_v0
-                sw \$v1, saved_v1
-                
-                la \$v0, saved_double
-                sdc1 \$f0, 0(\$v0)
-                sdc1 \$f2, 8(\$v0)
-        
-                print_si(separator)
-                print_si(message)
-        
+
+cat <<-EOF
+
+
                 .macro print_error(%label)
                     # Update this macro to print to stderr
                     print_si(%label)
                 .end_macro
+
+validate:       nop     # This is the routine to test the return of subroutine
+
+                # Save the possible return values: v0, v1, f0, f2
+                sw \$v0, saved_v0
+                sw \$v1, saved_v1
+                
+                la \$gp, saved_double
+                sdc1 \$f0, 0(\$gp)
+                sdc1 \$f2, 8(\$gp)
+
+
+                print_si(separator)
+                print_si(message)
                             
-        
-                # Validate that each S registers and gp was restored correctly
-                li \$gp, 0xDeadBeef
+
+                # Validate that each S registers was restored correctly
+                li \$gp, 0xDead
                 beq \$gp, \$s0, tst_s1
                   print_error(s0_error)
 tst_s1:         beq \$gp, \$s1, tst_s2
@@ -772,52 +841,25 @@ tst_s7:         beq \$gp, \$s7, tst_d
 tst_d:          nop
 
                 # Validate usage: of \$sp and \$fp  
-                #   fp should be 0xDeadBeef, \$sp, (\$sp + 4)
-                #     - 0xDeadBeef: fp was not used
-                #     - \$sp: returning 1 word via the convention
-                #     - \$sp + 4: returning 2 words via the convention
-                li \$gp, ${frame_return_bytes}
-                beq \$gp, \$fp, skip1
-                lw \$gp, saved_sp
-                subi \$gp, \$gp, ${frame_return_bytes}
+
+                lw \$gp, saved_fp
                 beq \$gp, \$fp, skip1
                   print_error(fp_warning)
-skip1:          nop
-
-                #   sp should be: saved_sp, sp + 4, sp + 8
-                #     - + 0: saved_sp: stack was restored
-                #     - + 4: 1 word return-value is on the stack
-                #     - + 8: 2 word return-value is on the stack
-                #     - but is my responsiblity, but give a warning
-                lw \$gp, saved_sp
-                subi \$gp, \$gp, ${stack_return_bytes}
+skip1:          lw \$gp,  saved_sp
                 beq \$gp, \$sp, skip2
                   print_error(sp_warning)
 skip2:          nop
 
                 lw \$v0, saved_v0
-EOF
+                lw \$v1, saved_v1
 
-  if [[ -n "${AFTER}" ]] ; then 
-    # --after "call {name} {arg1} {arg2} ...."
-    # --after ".include my.macros\n macro(a, b, c, d)"
-    # --after "jal {name}"
-    if [[ -f "${AFTER}" ]] ; then
-      cat "${AFTER}"
-    else
-      printf "${SPACE15} %b\n" "${AFTER}"
-    fi
-  fi
-  printf "${SPACE15} ${SUB_RETURN_FUNC}"
+                la \$gp, saved_double
+                ldc1 \$f0, 0(\$gp)
+                ldc1 \$f2, 8(\$gp)
 
-  #     1. Exit the value of $v0
-  cat <<-EOF
-                
-                # Exit with the value of $v0
-                # After can modify effectively the return value
-                lw \$v0, saved_v0   # restore the original value
-                exit(\$v0)
-
+                unstage_return \$v0
+                ${SUB_RETURN_FUNC}
+                jr \$ra
 EOF
 
 } > ${BOOTSTRAP_FILE}
@@ -1046,7 +1088,7 @@ function subroutine_summary () {
   echo "${SUB_CALL} returned ${SUB_RETURN_VALUE}"
   marshal_in_registers "documentation"
   _next_arg=$?
-  marshal_on_stack "documentation" ${_next_arg}
+  stage_on_stack "documentation" ${_next_arg}
  
 }
 
@@ -1072,8 +1114,8 @@ while getopts ha:b:L:f:ASsr:R:tv option ; do
             ;;
 
         f)  case "${OPTARG}" in
-               ad-hoc | registers | full )
-                  FRAME_TYPE="{OPTARG}"
+               ad-hoc | register | full )
+                  FRAME_TYPE="${OPTARG}"
                   ;;
                * )
                   echo "Unknown Frame type"

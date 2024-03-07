@@ -28,24 +28,20 @@
 #     ```
 #     int name( int a, int b, int c, int d, int e, int f) {
 #
-#       int x, y, z;             
+#       //  int x, y, z;          # Not Supported: Presume x, y, & z reference registers
 #       z = sub2(x, y, z, a, f);
 #     }
 #     ```
 
-# Static Space:
+# Static Space upon Call.
 #
 #         | Variable | Group  | Register |  Memory  | Offset Expression  |
 #         |----------|--------|----------|----------|--------------------|
 #         |    f     | Formal |          |   8($fp) |  local# << 2       |
-#         |    e     | Formal |          |   4($fp) |  local# << 2       |
-#  $fp->  |  return  | Return |  $v0     |   0($fp) |                    |
+#  $sp->  |    e     | Formal |          |   4($fp) |  local# << 2       |
 #         ---------------------------------------------------------------|
-#         | return2  | Return |  $v1     |  (optional)                   | * consider it a local
-#         |    x     | Local  |  --      |  -4($fp) |  - local# << 2     |
-#         |    y     | Local  |  --      |  -8($fp) |  - local# << 2     |
-#         |    z     | Local  |  --      | -12($fp) |  - local# << 2     |
-#         |--------------------------------------------------------------|
+#
+#         Note: the values of e & f, are poped of the statck by the Callee
 
 # Dynamic Space:
 #
@@ -62,18 +58,23 @@
 #         |    -     | Caller |  ...     |  ?       | pushed onto stack  |
 #         |    -     | Caller |  $t0     |  ?       | pushed onto stack  |
 #         |    -     | Callee |  $fp     |  ?       | pushed onto stack  |
-
-# Parameter Passing Space:
+#
+# Parameter Passing Space on Stack
 #
 #         ----------------------------------------------------------------
 #         | Variable | Group  | Register |  Memory  | Comment            |
 #         |----------|--------|----------|----------|--------------------|
-#         |    f     | Actual |  ---     |  ?       |  push onto stack   |
+#  $sp->  |    f     | Actual |  ---     |  ?       |  push onto stack   |
+#
+# Paramemter Passing in Registers
+#
+#         ----------------------------------------------------------------
+#         | Variable | Group  | Register |  Memory  | Comment            |
+#         |----------|--------|----------|----------|--------------------|
 #         |    a     | Actual |  $a3     |  ?       |                    |
 #         |    z     | Actual |  $a2     |  ?       |                    |
 #         |    y     | Actual |  $a1     |  ?       |                    |
 #         |    x     | Actual |  $a0     |  ?       |                    |
-#  $sp->  |  return  | Return |  $v0     |  ?       |                    |
 #         ---------------------------------------------------------------
 #
 #
@@ -83,20 +84,30 @@
 #
 # #####  
 #               .globl name            
-# name:         nop
+# name:         nop                    # int name(int a, int b, int c, int d, int e, int f)
+#
+#               # Register Allocation:
+#               # t0: a
+#               # t1: b
+#               # t2: c
+#               # t3: d
+#               # t4: e
+#               # t5: f
 #
 #               ####################################################
 #               # Subroutine Setup
 #
+#               load_additional_inputs $t4, $t5                 # In lieu of accessing via memory
 #               add_locals 0                                    # Space for locals
-#               push $ra                                        # (For Non-leaf): Unless this is a leaf node
-#               push_s_registers                                # (For Non-leaf) ave the "Callee" saved registers
+#               push $ra                                        # (For Non-leaf): Save the return address
+#               push_s_registers                                # (For Non-leaf): Save the "Callee" saved registers
 #               demarshal_inputs $t0, $t1, $t2, $t3             # 
 #
 #               ####################################################
-#               # ad-hoc frame: pop the additional args off the stack into locals
-#               # register frame: access additional args from stack via $fp
-#               # full frame:     access all args  from the stack via the $fp
+#               # Note: obtain the additional inputs via the stack via direct memory access
+#               #   ad-hoc frame:   nope: must use 'load_additional_inputs'
+#               #   register frame: access additional args from stack via $fp 
+#               #   full frame:     access all args from the stack via the $fp
 #
 #               < Main Subroutine Code >
 #
@@ -120,11 +131,11 @@
 #               ####################################################
 #               # The Pre-call
 #
-#               marshal_inputs({arg0}.. {arg3})
-#               push_t_registers()
+#               marshal_inputs {arg0} ... {arg3}
+#               push_t_registers
 #               push $fp
-#               stage_formals({arg0} ... {argN-1})
-#               alloc_return                                    # Space for return: alloca_i(4) -- always
+#               stage_formals {arg0} ... {argN-1}
+#               alloc_return                                    # Space for return: alloca_i(4)
 #
 #               ####################################################
 #               # The Call
@@ -137,9 +148,9 @@
 #               # The Post-call
 #
 #               unstage_return $v0                              # Only if return is on the stack    
-#               unstage_formals({arg0} ... {argN-1}) 
+#               unstage_formals {arg0} ... {argN-1}
 #               pop $fp
-#               pop_t_registers()                               # Restore T registers 
+#               pop_t_registers                                 # Restore T registers 
 #               demarshal_return({reg})                         
 #               ####################################################
 
@@ -151,20 +162,20 @@
 
 
 ## Add Locals
-.macro add_locals(%imm)
-        li $gp, %imm
-        beq %imm, $gp, skip
-          break  # Not supported under ad-hoc frames
-skip:   nop                
+.macro add_locals(%count)
+        li $gp, %count
+        beq $zero, $gp, skip
+          break
+skip:   nop
 .end_macro
 
-.macro remove_locals(%imm)
-        li $gp, %imm
-        beq %imm, $gp, skip
-          break  # Not supported under ad-hoc frames
+
+.macro remove_locals(%count)
+        li $gp, %count
+        beq $zero, $gp, skip
+          break
 skip:   nop                  
 .end_macro
-
 
 
 ##  Marshal Inputs
@@ -187,7 +198,9 @@ skip:   nop
         move $a0, %arg0
 .end_macro
 .macro marshal_inputs()
+
 .end_macro
+
 
 ##  Demarshal Inputs
 .macro demarshal_inputs(%arg0, %arg1, %arg2, %arg3)
@@ -210,12 +223,12 @@ skip:   nop
         move %arg0, $a0
 .end_macro
 .macro demarshal_inputs()
+
 .end_macro
 
 
-
 ## Stage Formals
-.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, arg8)
+.macro stage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, %arg8)
        addiu $sp, $sp, -20
        sw %arg8, 16($sp)
        sw %arg7, 12($sp)
@@ -261,8 +274,9 @@ skip:   nop
 .macro stage_formals()
 .end_macro
 
+
 ## UnStage Formals
-.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, arg8)
+.macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7, %arg8)
        subiu $sp, $sp, -20
 .end_macro
 .macro unstage_formals(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5, %arg6, %arg7)
@@ -278,18 +292,25 @@ skip:   nop
        subiu $sp, $sp, -4
 .end_macro
 .macro unstage_formals(%arg0, %arg1, %arg2, %arg3)
+
 .end_macro
 .macro unstage_formals(%arg0, %arg1, %arg2)
+
 .end_macro
 .macro unstage_formals(%arg0, %arg1)
+
 .end_macro
 .macro unstage_formals(%arg0)
+
 .end_macro
 .macro unstage_formals()
+
 .end_macro
+
 
 ## Alloc Return
 .macro alloc_return() 
+
 .end_macro
 
 .macro stage_return(%reg) 
@@ -299,18 +320,37 @@ skip:   nop
 .macro unstage_return(%reg)
 .end_macro
 
-.macro set_frame(%fp, %sp)
-.end_macro
-.macro unset_frame(%fp)
-.end_macro
+.macro set_frame()
 
+.end_macro
+.macro unset_frame()
+
+.end_macro
 
 .macro marshal_return(%reg)
         move $v0, %reg
 .end_macro
-.macro demarshal_return(%retval)
+.macro demarshal_return(%reg)
         move %reg, $v0
 .end_macro
+
+###########################
+.macro load_additional_inputs(%arg4, %arg5, %arg6, %arg7, %arg8)
+        pop %arg4 %arg5 %arg6 %arg7 %arg8
+.end_macro
+.macro load_additional_inputs(%arg4, %arg5, %arg6, %arg7)
+        pop %arg4 %arg5 %arg6 %arg7
+.end_macro
+.macro load_additional_inputs(%arg4, %arg5, %arg6)
+        pop %arg4 %arg5 %arg6 
+.end_macro
+.macro load_additional_inputs(%arg4, %arg5)
+        pop %arg4 %arg5
+.end_macro
+.macro load_additional_inputs(%arg4)
+        pop %arg4
+.end_macro
+
 
 
 # Questions Related to Design Criteria:

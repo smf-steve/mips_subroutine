@@ -112,7 +112,7 @@ The rest of this file, documents this full frame structure. Refer to the individ
 
 ## DESIGN CRITERIA
 
-The convention and structure of a frame is based upon a number of Design Criteria.  Here is a list of questions that influence the final structure.
+The convention and structure of a frame is based upon a number of Design Criteria.  Here is a list of questions that influence the final structure. We also provide the answers that drove the design of our full frame structure
 
 ### Questions:
    - Who is responsible, the Caller or the Callee, for pushing formal arguments onto the stack?
@@ -124,7 +124,8 @@ The convention and structure of a frame is based upon a number of Design Criteri
    - Are varargs function supported?
      * Yes, and this implies that the Caller is responsible for pushing and popping formal arguments.
 
-   - Is alloca supported?
+   - Is alloca supported, i.e., are temp variables supported?
+
      * Yes, alloca allows the programmer to allocate additional space on the stack for dynamic data.
 
    - Who is responsible for saving which registers?
@@ -201,7 +202,7 @@ The layout of the frame contains three major areas:
   Given the example of 
 
   ```java
-  public static int name( int a, int b, int c, int d, int e, int f) {
+  public static int name(int a, int b, int c, int d, int e, int f) {
 
     int x, y, z;
     z = sub2(x, y, z, a, f);
@@ -260,26 +261,36 @@ The layout of the frame contains three major areas:
 
 ## MIPS PROCESSES
 
-### Subroutine Setup/Cleanup Process
+### Subroutine Setup/Cleanup Process // Example
 
    ```mips
 
                    .globl name            
-     name:         nop
+     name:         nope                    # int name(int a, int b, int c, int d, int e, int f)
     
+                   # Register Allocation:
+                   # t0: a
+                   # t1: b
+                   # t2: c
+                   # t3: d
+                   # t4: e
+                   # t5: f
     
                    ####################################################
                    # Subroutine Setup
-    
+
+                   load_additional_inputs $t4, $t5                 # In lieu of accessing via memory
                    add_locals 3                                    # Space for locals
-                   push $ra                                        # (For Non-leaf): Unless this is a leaf node
+                   push $ra                                        # (For Non-leaf): Save the return address
                    push_s_registers                                # (For Non-leaf) ave the "Callee" saved registers
                    demarshal_inputs $t0, $t1, $t2, $t3             # 
     
                    ####################################################
-                   # ad-hoc frame:   pop the additional args off the stack into locals
-                   # register frame: access additional args from stack via $fp
-                   # full frame:     access all args  from the stack via the $fp
+                   # Note: obtain the additional inputs via the stack via direct memory access
+                   #   ad-hoc frame:   nope: must use 'load_additional_inputs'
+                   #   register frame: access additional args from stack via $fp 
+                   #   full frame:     access all args from the stack via the $fp
+
     
                    < Main Subroutine Code >
     
@@ -335,13 +346,13 @@ The layout of the frame contains three major areas:
 The literature provides various definition of frames. The following table compares the three frame structure defined via mips_subroutine with virtual frames and the more standard frame structure.
 
 
-  | Type      | Anchor | Formals    | Locals | Callee Reg | Temps    | Caller Reg | Actual Args |
-  |-----------|--------|------------|--------| ---------- |----------| ---------- |-------------|
-  | Virtual   |  $sp   |  Stack     |  Yes   |   static   | compiler |   static   | static      |
-  | Standard  |  $fp   |  Stack     |  Yes   |   static   | yes*     |   static   | static      |
-  | Full      |  $fp   |  Stack     |  Yes   |   static   | yes      |   dynamic  | static      |
-  | Registers |  $fp   |  Stack*    |  Yes   |   static   | yes      |   dynamic  | static      |
-  | Ad-Hoc    |  $sp   |  Reg+Stack |  No    |   dynamic  | no       |   dynamic  | no          |
+  | Type      | Anchor Point  | Formals    | Locals | Callee Reg | Temps    | Caller Reg | Actual Args |
+  |-----------|---------------|------------|--------| ---------- |----------| ---------- |-------------|
+  | Virtual   |  $sp ->tos    |  Stack     |  Yes   |   static   | compiler |   static   | compiler    |
+  | Standard  |  $fp ->arg0   |  Stack     |  Yes   |   static   | compiler |   static   | static      |
+  | Full      |  $fp ->return |  Stack     |  Yes   |   static   | yes      |   dynamic  | static      |
+  | Registers |  $fp ->arg4   |  Stack*    |  Yes   |   static   | yes      |   dynamic  | static      |
+  | Ad-Hoc    |  $sp ->tos    |  Reg+Stack |  No    |   dynamic  | yes      |   dynamic  | no          |
 
  
   * Anchor Point: the relative location in which all addressing is performed
@@ -349,8 +360,8 @@ The literature provides various definition of frames. The following table compar
     - Stack*: indicates that all formals have a predefined location within the frame, but the first 4 arguments are passed via registers
     - Reg+Stack: indicates that the first 4 arguments are passed via registers, and ONLY the additional arguments are passed via the stack
   * Locals: indicates whether or not "local" variables are supported.
-  * Callee Reg: indicates whether or not the callee registers ($sp, $fp, $sX) are directly accessible via the anchor point.  
-  * Temps: Indicates that temporary variable are supported.  The marking "yes*" indicates that compiler support is needed.
-  * Caller Reg: indicates whether or not the caller registers ($tX) are directly accessible via the anchor point.
-  * Actual Args: indicates if the actual arguments to the subroutine are directly accessible via the anchor point.
+  * Callee Reg: indicates how the callee registers ($sp, $fp, $sX) are placed onto the stack.  Static indicates that the register locations are predefined.
+  * Temps: Indicates that temporary variable are supported.  The temps are allocated via "alloca".
+  * Caller Reg: indicates how the caller registers ($tX) are placed onto the stack.  Static indicates that the register locations are predefined.
+  * Actual Args: indicates if the actual arguments to the subroutine are directly accessible via the anchor point. 
 
