@@ -4,7 +4,7 @@
 # echo:  echos the command line arguments, argues are strings
 
 INT_INPUT= 36 0x24 044 0o44 "\$" "\$"  "2\#100100" "0b0010 0100"
-   # Note that in the Makefile $ and # are speciall so you need to escape
+   # Note that in the Makefile $ and # are special so you need to escape
 STR_INPUT= "a\0" "1234\0"  apple two three four 
 
 empty: 
@@ -25,6 +25,7 @@ summation:
 
 
 echo_list: echo_list.j echo_list.s
+	# Uses the default frame, i.e., ad-hoc
 	#mips_subroutine -S echo 8 $(INT_INPUT)
 	java_subroutine -S echo 8 $(INT_INPUT)
 	#mips_subroutine echo 6 $(STR_INPUT)
@@ -39,3 +40,17 @@ binaryReal:
 binary32:
 	cd binary32 ; make test_java	
 	cd binary32 ; make test_mips
+
+
+# Frames:
+
+.PHONY: frames_mips
+frames_mips:	
+	sed 's/\$${FRAME_TYPE}/ad-hoc/'   frame_example.s >frame_example_ad-hoc.s
+	sed 's/\$${FRAME_TYPE}/register/' frame_example.s >frame_example_register.s
+	sed 's/\$${FRAME_TYPE}/full/'     frame_example.s >frame_example_full.s
+	mips_subroutine -L frame_example_ad-hoc.s   -f ad-hoc   name 1 2 3 4 5 6 7 8
+	mips_subroutine -L frame_example_register.s -f register name 1 2 3 4 5 6 7 8
+	mips_subroutine -L frame_example_full.s     -f full     name 1 2 3 4 5 6 7 8
+
+

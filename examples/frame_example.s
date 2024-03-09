@@ -7,8 +7,7 @@
 
                 .include "./include/syscalls.s"
                 .include "./include/stack.s"
-                .include "./include/register_frames.s"
-                # can I include the following automatically
+                .include "./include/${FRAME_TYPE}_frames.s"
 
 # #####  
                 .globl name            # int name( int a, int b, int c, int d, int e, int f, int g)
