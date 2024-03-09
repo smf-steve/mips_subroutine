@@ -52,5 +52,5 @@ frames_mips:
 	mips_subroutine -L frame_example_ad-hoc.s   -f ad-hoc   name 1 2 3 4 5 6 7 8
 	mips_subroutine -L frame_example_register.s -f register name 1 2 3 4 5 6 7 8
 	mips_subroutine -L frame_example_full.s     -f full     name 1 2 3 4 5 6 7 8
-
+	rm -f frame_example_*.s
 
