@@ -24,9 +24,9 @@
 
                 .text
                 .globl encode_binary32
-                .include "macros/syscalls.s"
-                .include "macros/subroutine.s"
-                .include "macros/stack.s"
+                .include "include/syscalls.s"
+                .include "include/subroutine.s"
+                .include "include/stack.s"
 
 
                 # The following is test input to help you in your initial debugging

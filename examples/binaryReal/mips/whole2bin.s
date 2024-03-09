@@ -1,7 +1,7 @@
        .text
        .globl whole2bin
-       .include "macros/syscalls.s"
-       .include "macros/stack.s"
+       .include "include/syscalls.s"
+       .include "include/stack.s"
 
 whole2bin:            # int whole2bin(int number);
         

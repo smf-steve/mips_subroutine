@@ -1,7 +1,7 @@
 # This file will be provided later by the professor. 
 
                 .globl decode_binary32
-                .include "macros/syscalls.s"
+                .include "include/syscalls.s"
 
                 .data
 

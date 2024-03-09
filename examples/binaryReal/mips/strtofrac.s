@@ -1,6 +1,6 @@
         .text
-        .include "macros/syscalls.s"
-        .include "macros/stack.s"
+        .include "include/syscalls.s"
+        .include "include/stack.s"
 
         .macro li.d( %freg, %imm)
            li $at, %imm
