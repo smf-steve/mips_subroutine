@@ -1135,7 +1135,11 @@ while getopts ha:b:L:f:ASsr:R:tv option ; do
         L)  LOAD_FILES="${LOAD_FILES} ${OPTARG}"
             ;;
 
-        f)  case "${OPTARG}" in
+        f)  if [ $VERSION == "java" ] ; then
+              echo "Only ad-hoc Frames are supported Java"
+              exit 1
+            fi
+            case "${OPTARG}" in
                ad-hoc | register | full )
                   FRAME_TYPE="${OPTARG}"
                   ;;
@@ -1322,24 +1326,20 @@ if [[ $VERSION == "mips" ]] ; then
   build_mips_source
   execute_mips
   execution_error="$?"
-fi
+fi |  fix_error_messages
 
 if [[ $VERSION == "java" ]] ; then 
   build_java_source
   execute_java
   execution_error="$?"
   cat ${OUTPUT_FILE}
-fi
+fi |  fix_error_messages
 
-exit
-if [[ ${execution_error} == 0 ]] ; then 
-  #print_user_output
-  #post_process
-  :
-else
-  cat ${OUTPUT_FILE} |  fix_error_messages
-fi
 
+if [[ ${SUMMARIZE} == TRUE ]] ; then
+  subroutine_summary
+  echo
+fi
 
 
 

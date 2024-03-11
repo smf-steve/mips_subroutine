@@ -21,8 +21,8 @@ class MIPS_OS_Interface {
   // MEMORY
   static int sbrk_p = 0;
   static byte[] MEM = new byte[1024];
-  static int[] STACK = new int[256];
-  static char[][] str_stack = new char[25][];
+  static Object[] STACK = new Object[256];
+//  static char[][] str_stack = new char[25][];
 
 
   public static int retval() {
@@ -237,26 +237,18 @@ class MIPS_OS_Interface {
 
 
   // stack.s
-  public void push(char [] register) {
+   public void push(int register) {
     $sp = $sp + 1;
-    str_stack[$sp] = register;
-  }
-  public char [] pop( char [] dumb ) {
-    char [] x = str_stack[$sp];
-    $sp = $sp - 1; 
-    //$v0 = x;
-    return x;
+    STACK[$sp] = (Object) register;
   }
 
-
-  public void push(int register) {
+  public void push(char[] register) {
     $sp = $sp + 1;
-    STACK[$sp] = register;
+    STACK[$sp] = (Object) register;
   }
-  public int pop() {
-    int x = STACK[$sp];
+  public Object pop() {
+    Object x = STACK[$sp];
     $sp = $sp - 1; 
-    $v0 = x;
     return x;
   }
 
@@ -297,6 +289,11 @@ class MIPS_OS_Interface {
     print_x(value);
     print_ci('\t');
     print_t(value);
+    print_ci('\n');
+  }
+
+  public static void println_d(int value) {
+    print_d(value);
     print_ci('\n');
   }
 
