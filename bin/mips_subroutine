@@ -282,6 +282,21 @@ EOF
 
   cat <<-EOF
 
+  public static char[] string2charArray(String text) {
+    int index;
+    char [] A = new char[ text.length() + 2];
+
+    for (index=0; index < A.length - 2; index++ ) {
+      A[index] = (text).charAt(index);
+    }
+    A[index]   = '\0' ;   // the Null character
+    A[index+1] = '\7' ;   // the Alert character
+    return A;
+  }
+
+  static String separator = "#########################################\n";
+  static String message   = "# Above is the output from your program\n\n";
+
   public static void main(String[] args) {
   
     int index;
@@ -310,12 +325,7 @@ EOF
   
       string)
          echo "    String string_$i = \"$_text\";"
-         echo "    char \$a$i[] = new char[ (string_$i).length() + 2];"
-         echo "         for (index=0; index < \$a$i.length - 2; index++ ) {"
-         echo "           \$a$i[index] = (string_$i).charAt(index);"
-         echo "         }"
-         echo "         \$a$i[index] = '\0' ; // the Null character"
-         echo "         \$a$i[index+1] = '\7' ; // the Alert character"
+         echo "    char \$a$i[] = string2charArray(string_$i);"
          ;;
     esac
   done
@@ -330,7 +340,7 @@ EOF
 
   echo
   echo "    // Marshal the stack arguments:"
-  for ((i=4; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do 
+  for ((i = ${#SUB_ARGS_TEXT[@]} -1; i >= 4; i--)) ; do 
     echo     "    mips.push(\$a$i);" 
   done
 
@@ -342,6 +352,8 @@ EOF
     else
       printf "%b\n" "${BEFORE}"
     fi
+  else
+    echo "    // -- "
   fi 
 
   # Here the only types that should be referenced are
@@ -350,6 +362,9 @@ EOF
   # string, char[], *[]
 
   # Following does not work correctly for floating point values
+
+  echo 
+  echo "// Make the primary call to the subroutine"
   if [[ ${SUB_RETURN_ARRAY} == "TRUE" ]] ; then
     echo -n "    int[] "
   else
@@ -383,9 +398,16 @@ EOF
     else
       printf "%b\n" "    ${AFTER}"
     fi
-  fi 
+  else
+    echo "    // --"
+  fi
 
   cat <<EOF
+
+    // This is where the validation step should go.
+    mips.print_s(separator);
+    mips.print_s(message);
+
     mips.${SUB_RETURN_FUNC};
     return;
   }
@@ -1306,6 +1328,7 @@ if [[ $VERSION == "java" ]] ; then
   build_java_source
   execute_java
   execution_error="$?"
+  cat ${OUTPUT_FILE}
 fi
 
 exit
