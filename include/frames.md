@@ -365,3 +365,90 @@ The literature provides various definition of frames. The following table compar
   * Caller Reg: indicates how the caller registers ($tX) are placed onto the stack.  Static indicates that the register locations are predefined.
   * Actual Args: indicates if the actual arguments to the subroutine are directly accessible via the anchor point. 
 
+
+
+## Typical Frame Components in order of 
+   1. Formal Arguments ([^a_regs]): Associated with the Parents Frame(shared)
+   1. Local Variables ([^local])
+   1. Caller Saved: $t0 .. $t9
+   1. Callee Saved: $ra, $sp, $fp, $gp, $s0 - $s8 (^[mask])
+   1. Actual Args (shared)
+
+
+
+## Frame Components in order of for COMP122
+   1. Formal Arguments ([^a_regs]): Associated with the Parents Frame(shared)
+   1. Return Value
+   1. Local Variables ([^local])
+   1. Callee Saved: $ra, $s0 - $s8 (^[mask])
+   1. Dynamic Temps ([^alloca])  
+   1. Caller Saved: $t0 - $t9 (^[mask],[^[dynamic]])
+   1. Frame Pointer: $fp
+   1. Actual Args (shared)
+
+
+
+
+   [^*]: The location of the Temp Area is changed to be after the Caller Saved Area
+   [^return]: Return values are placed on top of the stack, except Basic and Macro
+   [^a_regs]: Space for all arguments are placed on the stack, except Basic and Macro
+   [^local]: Includes compiler generated variables.
+   [^mask]: If a mask is used to registers in a component need to be organized in descending order.  I.e., the s-registers are stored $s8 - $s0. 
+   [^alloca]: The location of the Alloca component is relocated with Virtual and Static frames.
+   [^dynamic]: The registers $t0-$t9 must be dynamically placed if alloca is used, either otherwise
+
+## Requirements // Caveats 
+   1. The Caller owns the Procedure Call Argument Component
+      - hence it is responsible for its creation and destruction
+   1. The Caller presumes that the Procedure Call Argument Component is volatile 
+      * The Caller presumes the registers: $a0 - $a3, $v0, and $v1 are volatile
+   1. Arguments are placed onto the stack from right-to-left
+   1. Stack frames must be double word aligned (8)
+   1. Stack frames must be in evenly divisible by 8
+      - issue with Alloc, take steps to ensure alignment of $sp
+      - this is to insure double args can be transferred
+
+   1. Arguments include return values...
+   1. Optimization to alias return values with arg_n, etc.
+
+
+## Names:
+   1. Virtual Frame:
+      - presumes compiler support
+      - frame addressing for all is via $sp ($fp is NOT used)
+      - presume no alloca support
+    
+   1. Standard Frame 
+      - frame addressing for all is via $fp
+      - $fp points to arg_0
+      - alloca component is relocated to the end of the frame
+      - return value is place into $fp
+
+
+Full because it the frame is FULL with respect to the formal arguments
+
+   1. FULL Frame for COMP122
+      - frame addressing for formals + locals are via $fp
+      - frame addressing for registers is via $sp
+      - $fp points to arg_0
+      - arg_0 .. arg_3 are passed via register, with space on stack
+      - ret_0 ... ret_1 are passed via registers, with space on stack    << * only one return
+      - alloca supported
+
+      - Degrades to Ad-Hoc Frame
+        - MIPS register convention is used
+        - formals <= 4, or popped of the stack a priori
+        - number of locals == 0 
+
+   1. Ad-hoc Frame for COMP122
+      - it is called the Ad-hoc frame, we do only as necessary
+      - $fp is not used, $gp is not used
+      - addressing via $sp, and need not be saved
+      - ret0..ret1 are in registers
+      - arg0..arg3 are in registers
+      - additional args are
+        - pushd onto the stack by the Caller from right-to-left
+        - poped off the stack via the Callee
+      - number of locals == 0 (presumed to be all in registers)
+      - alloca supported
+
