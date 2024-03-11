@@ -1,3 +1,5 @@
+-f frame  
+
 ### NAME
     mips_subroutine – execute a MIPS subroutine
 
