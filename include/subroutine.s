@@ -1,18 +1,3 @@
-# This file contains the macros to needed to call a MIPS subroutine without the use of a frame.
-#
-# It presume the following:
-#   1. number of formals <= 4
-#   1. number of locals == 0 
-#   1. a single return value in $v0
-#   1. all input arguments and the return values are an integer type.
-
-# Need to determine the correct name of this.
-#  No frame, null fraom SiMPLe frame, etc.
-# Macro List
-########################
-#
-
-
 .macro call( %sub, %arg0)
   save_state()
   push $a0
@@ -45,56 +30,50 @@
 .end_macro
 
 
-# the following are not needed
-# 
-# .macro demarshal_results()
-# .end_macro
-# 
-# .macro demarshal_results(%v0)
-#        nop                      # Demarshaling Return Values
-#        move %v0, $v0            # On MIPS, the first return value is in $v0
-# .end_macro
-# 
-# .macro demarshal_results(%v0, %v1)
-#        nop                      # Demarshaling Return Values
-#        move %v0, $v0            # On MIPS, the first return value is in $v0
-#        move %v1, $v1            # On MIPS, the second return value is in $v1
-# .end_macro
-# 
-# 
-# 
-# .macro marshal_args()
-# .end_macro
-# 
-# 
-# .macro marshal_args(%a0)
-#         nop                     # Marshaling Input Args
-#         move $a0, %a0           # On MIPS, the first four args are in registers
-# .end_macro
-# .macro marshal_args(%a0,%a1)
-#         nop                     # Marshaling Input Args
-#         move $a0, %a0           # On MIPS, the first four args are in registers
-#         move $a1, %a1
-# .end_macro
-# .macro marshal_args(%a0,%a1,%a2)
-#         nop                     # Marshaling Input Args
-#         move $a0, %a0           # On MIPS, the first four args are in registers
-#         move $a1, %a1
-#   move $a2, %a2
-# .end_macro
-# .macro marshal_args(%a0,%a1,%a2,%a3)
-#         nop                     # Marshaling Input Args
-#         move $a0, %a0           # On MIPS, the first four args are in registers
-#         move $a1, %a1
-#         move $a2, %a2
-#         move $a3, %a3
-# .end_macro
-# .macro marshal_args(%a0,%a1,%a2,%a3,%a4)
-#         nop                     # Marshaling Input Args
-#         move $a0, %a0           # On MIPS, the first four args are in registers
-#         move $a1, %a1
-#         move $a2, %a2
-#         move $a3, %a3
-#         nop                     # Remaining Args go on the Stack
-#         push(%a4)               
-# .end_macro
+.macro demarshal_results()
+.end_macro
+
+.macro demarshal_results(%v0)
+       nop                      # Demarshaling Return Values
+       move %v0, $v0            # On MIPS, the first return value is in $v0
+.end_macro
+
+.macro demarshal_results(%v0, %v1)
+       nop                      # Demarshaling Return Values
+       move %v0, $v0            # On MIPS, the first return value is in $v0
+       move %v1, $v1            # On MIPS, the second return value is in $v1
+.end_macro
+
+.macro marshal_args()
+.end_macro
+.macro marshal_args(%a0)
+        nop                     # Marshaling Input Args
+        move $a0, %a0           # On MIPS, the first four args are in registers
+.end_macro
+.macro marshal_args(%a0,%a1)
+        nop                     # Marshaling Input Args
+        move $a0, %a0           # On MIPS, the first four args are in registers
+        move $a1, %a1
+.end_macro
+.macro marshal_args(%a0,%a1,%a2)
+        nop                     # Marshaling Input Args
+        move $a0, %a0           # On MIPS, the first four args are in registers
+        move $a1, %a1
+  move $a2, %a2
+.end_macro
+.macro marshal_args(%a0,%a1,%a2,%a3)
+        nop                     # Marshaling Input Args
+        move $a0, %a0           # On MIPS, the first four args are in registers
+        move $a1, %a1
+        move $a2, %a2
+        move $a3, %a3
+.end_macro
+.macro marshal_args(%a0,%a1,%a2,%a3,%a4)
+        nop                     # Marshaling Input Args
+        move $a0, %a0           # On MIPS, the first four args are in registers
+        move $a1, %a1
+        move $a2, %a2
+        move $a3, %a3
+        nop                     # Remaining Args go on the Stack
+        push(%a4)               
+.end_macro
