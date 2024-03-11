@@ -1,25 +1,11 @@
 # ToDo:
 
-1. add in the flag --frame / -f for frames in mips_subroutine
-   - test the current version   -- which should work for ad-hoc frames
-   - 
+1. [ ] Document the flag --frame / -f for frames in mips_subroutine
 
-1. review the test cases for just ad-hoc frame  args < 4, just ints
-   - Mips
-   - Java
-1. review the test cases for just ad-hoc frame args  > 4, just ints
-   - Mips
-   - Java
+1. [ ] Work on floating point support for subroutine calling (deferred)
 
 
-1. review the test cases for just ad-hoc frames args < 4, for strings
-1. review the test cases for just ad-hoc frames args < 4, for strings
-
-
-1. Work on floating point support for subroutine calling (deferred)
-
-
-1. [] Add to mips/include/syscalls.s the following routines, or move these to io.s
+1. [ ] For to mips/include/syscalls.s and Java OS Inteferace: add the  following routines, or move these to io.s
       - read NextInt, the parse
    ```java
    public static void read_x() {
@@ -34,68 +20,12 @@
      $v0 = stdin.nextInt(2);
    }
    ```
+
 1. [ ] Create test case for alloca and test
 
+1. [] Review all examples for different frame support
+   -- or just make sure they only use ad-hoc frames
 
-### Frames
-  - [x] Define two types of Frames to be used within COMP122: `ad-hoc frame` & `register frame`
-    - [x] Document the two types of frames used within COMP122
-      - [x] Adhoc frames are used for the bulk of the course
-        * java_subroutine only supports adhoc frames
-
-
-Saturday feb 17
-  - focus on just integers <= 4
-    - mips
-    - java
-  - add whole2bin, i.e., need push and pop
-  - add strrev, i.e., need push & pop with strings
-
-  - then add frames
-    - but why in Java... 
-      * because more than four
-      * but this is only right before the very end of the class
-    * mips.set_frame
-      - push null (this is there return value)
-      - mips.fp = mips.sp
-    * arg_4 =  mips.STACK[ mips.$fp + 4 + 1];
-    * mips.unset_frame
-
-Frames for Java
-   1. ad hoc:
-      - you need to push the arguments > 4 : right to left
-   1. full frame:
-      - set_frame:
-
-
->4 args    --> subroutine
-               1. ad-hoc, pop, pop, pop
-               1. full:
-                  set_frame:  
-                      push return value (but not used)
-                      fp = sp
-                  access 4...  ()fp
-                  remove_frame:
-                     sp = sp + args
-
-subroutine -->  X
-   1. full: 
-       push, push, push: right to left
-       method( ..first four...)
-       pop, pop, pop    // this subroutine cleans stack
-   1. adhoc:
-       push, push, push:  right-to-right
-       method( ... first four...)
-       // method cleans up stack
-
-Need to remove Frame stuff again... where is it all
-   frame.s
-
-Current Status:
-
-- not multiple return values
-- not aggregate structures
-- yes, before and after
 
 
 # Bugs:
@@ -183,7 +113,7 @@ dwarf:examples steve$
       - S keep the same
       - A : pass the input arguments as an heterogeneous array 
         * use { a a a a a }
-        * if the flag is given -- have it mimic the argv struction
+        * if the flag is given -- have it mimic the argv structure
           - which is realy just  5 [ "string" string string ]
 
 
@@ -195,14 +125,6 @@ dwarf:examples steve$
    1. [ ] java:  update to handle -R code generation
       - ? should the default --after be:  print_register($v0) based upon type
 
-
-   1. reframe output flags:  (see below)
-      *  -v ==>   --after "print_registers($v0, $v1)"
-
-      - v : v0 & v1
-      - t : dumpt t registers (special case of)
-      - r : dump list of registres
-      - s : summarize  "value = name ( arg, ... ) "
 
 
 
@@ -351,11 +273,10 @@ dwarf:examples steve$
 
 
 
-## Bugs
 
 
 
-# Notes found elsewhere... need to review
+# Unit Test with output validation
 Need a way to have an validate the output of mips_subroutine
 perhaps this is not part of mips_subroutine but a supporting program.
 Consider driving this functionality for a JSON object
@@ -378,8 +299,9 @@ Consider driving this functionality for a JSON object
 }
 
 
+# File Support
 
-1. FILES:  Add additional support to hande i/o Files from the user
+1. FILES:  Add additional support to handle i/o Files from the user
    - this now might not be necessary given the way --after & --before works
    - this needs to be flushed out.
 
@@ -394,13 +316,17 @@ Consider driving this functionality for a JSON object
 
 # Documentation Notes
 
+## Before and After
 1. the --before  
-     - must have knowledge of the entry subroutine
-     - may ignore, or process the cl-args
-     - must pass onto the entry subroutine what it needs
+   - must have knowledge of the entry subroutine
+   - may ignore, or process the cl-args
+   - must pass onto the entry subroutine what it needs
 
 1. the --after
-   -- we can always add "quick - reciepes" to simpley any of the following
+   - must have knowledge of what is left in registers after the call
+   - may ignore or manipulate individual registers
+
+1. Recipes:  we can always add "quick - recipes" to simplify any of the following
    1. -v : print_registers($v0, $v1)
    1. -t : print_registers($t0, ..., $t9)
    1. -r : print_registers( list of registers )
@@ -413,14 +339,14 @@ Consider driving this functionality for a JSON object
 
 
    * Examples of ...
-     - default:  print_register($v0)
+     - default:  print_register("$v0", $v0)
      - exit($v0)
-     - print_register($v0)
+     - print_register("$v0", $v0)
      - 
      - --after "call func arg1, arg, ... " # is okay
      - --after null                        # don't print print_register
-     - --after "print_register($v0)"       # the defualt
-     - --after "print_register.w($v0)"     # the defualt
+     - --after "print_register($v0)"       # the default
+     - --after "print_register.w($v0)"     # the default
      - --after "print_register.h($v0)"     # 
      - --after "print_register.b($v0)"     # 
      - 
@@ -442,3 +368,10 @@ Consider driving this functionality for a JSON object
    * for java_subroutine, user needs to provide the correct code
 
 
+## Frames
+
+1. Add Frames for Java
+   - [ ] write the series of macros of mips.set_frame, etc. 
+      - set_frame
+      - mips.fp = mips.sp
+   - [ ] arg_4 =  mips.STACK[ mips.$fp + 4 + 1];

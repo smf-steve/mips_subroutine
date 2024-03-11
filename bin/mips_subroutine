@@ -12,20 +12,11 @@ case ${0} in
    *mips_subroutine)
      VERSION="mips"
      LANG_EXT="s"
-     DUMP_X_REGISTERS="s0 s1 s2 s3 s4 s5 s6 s7 fp gp sp ra"
-     DUMP_REG_LIST=""
-     DUMP_T_REGS=""
-     DUMP_V_REGS=""
-
      ;;
 
    *j*_subroutine)
      VERSION="java"
      LANG_EXT="j"
-     DUMP_X_REGISTERS=""
-     DUMP_REG_LIST=""
-     DUMP_T_REGS=""
-     DUMP_V_REGS=""
      ;;
 esac
 
@@ -426,7 +417,6 @@ function build_mips_data_segment () {
   
 subroutine:     .asciiz "${SUB_NAME}"
                 # ${SUB_CALL}"
-                # Register Dump: ${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS}
   
  
 # Layout the command line arguments 
@@ -1123,7 +1113,7 @@ if [[ $# == 0 ]] ; then
 fi
 
 #### Process CMD LINE
-while getopts ha:b:L:f:ASsr:R:tv option ; do
+while getopts ha:b:L:f:ASsr:R:t option ; do
     case "${option}" in
         h)  usage_full
             exit 1
@@ -1202,15 +1192,28 @@ while getopts ha:b:L:f:ASsr:R:tv option ; do
 
         S)  ARG_CONVENTION="string" ;;
         s)  SUMMARIZE="TRUE" ;;
-        r)  DUMP_REG_LIST="${DUMP_REG_LIST} ${OPTARG}" ;;
-        t)  DUMP_T_REGS="t0 t1 t2 t3 t4 t5 t6 t7 t8 t9" ;;
-        v)  DUMP_V_REGS="" ;;   # for now, handle via post processing
+        r)  if [[ $VERSION == mips ]] ; then
+               AFTER=${AFTER}'\nprintln_register("$'${OPTARG}'", $'${OPTARG}')'
+            fi
+            ;;
+        t)  if [[ $VERSION == mips ]] ; then 
+              AFTER=${AFTER}'\nprintln_register("$t0", $t0)'
+              AFTER=${AFTER}'\nprintln_register("$t1", $t1)'
+              AFTER=${AFTER}'\nprintln_register("$t2", $t2)'
+              AFTER=${AFTER}'\nprintln_register("$t3", $t3)'
+              AFTER=${AFTER}'\nprintln_register("$t4", $t4)'
+              AFTER=${AFTER}'\nprintln_register("$t5", $t5)'
+              AFTER=${AFTER}'\nprintln_register("$t6", $t6)'
+              AFTER=${AFTER}'\nprintln_register("$t7", $t7)'
+              AFTER=${AFTER}'\nprintln_register("$t8", $t8)'
+              AFTER=${AFTER}'\nprintln_register("$t9", $t9)'
+            fi
+            ;;
     esac
 done
 
 
 # Process the Command line arguments
-DUMP_REGISTERS="${DUMP_REG_LIST} ${DUMP_T_REGS} ${DUMP_V_REGS} ${DUMP_X_REGISTERS}"
 eval "SUB_NAME=\${${OPTIND}}"
 shift ${OPTIND}
 
