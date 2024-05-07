@@ -9,7 +9,7 @@ case ${0} in
    *mips_subroutine)
      VERSION="mips"
      LANG_EXT="s"
-     ASM_EXT="java"
+     ASM_EXT="s"
      ;;
 
    *j*_subroutine)
@@ -469,7 +469,7 @@ EOF
 
 # Create space for register saving
                 .align 2
-exit_status     .word 0
+exit_status:    .word 0
 
                 .align 2
 saved_sp:       .word 0
@@ -698,6 +698,81 @@ function build_mips_source () {
                 .include "${MIPS_SUBROUTINE_HOME}/include/stack.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/${FRAME_TYPE}_frames.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/io.s"
+               .macro print_error(%label)
+                    # Update this macro to print to stderr
+                    print_si(%label)
+                    li \$gp, 255
+                    sw \$at, exit_status
+                .end_macro
+
+                .macro save_exit_status()
+                    sw \$v0, exit_status
+                .end_macro
+
+                .macro restore_exit_status()
+                    lw \$v0, exit_status
+                .end_macro
+
+                .macro save_return_values()
+                    # Save the possible return values: v0, v1, f0, f2
+                    sw \$v0, saved_v0
+                    sw \$v1, saved_v1
+                
+                    la \$gp, saved_double
+                    sdc1 \$f0, 0(\$gp)
+                    sdc1 \$f2, 8(\$gp)
+                .end_macro  
+
+                .macro restore_return_values()
+                    lw \$v0, saved_v0
+                    lw \$v1, saved_v1
+
+                    la \$gp, saved_double
+                    ldc1 \$f0, 0(\$gp)
+                    ldc1 \$f2, 8(\$gp)
+                .end_macro    
+
+
+                .macro validate()
+                   jal validate_sub
+                   save_exit_status()
+                .end_macro
+
+
+validate_sub:   nop     # This is the routine to test the return of subroutine
+
+                li \$v0, 0      
+                # Validate that each S registers was restored correctly
+                li \$gp, 0xDead
+                beq \$gp, \$s0, tst_s1
+                  print_error(s0_error)
+tst_s1:         beq \$gp, \$s1, tst_s2
+                  print_error(s1_error)
+tst_s2:         beq \$gp, \$s2, tst_s3
+                  print_error(s2_error)
+tst_s3:         beq \$gp, \$s3, tst_s4
+                  print_error(s3_error)
+tst_s4:         beq \$gp, \$s4, tst_s5
+                  print_error(s4_error)
+tst_s5:         beq \$gp, \$s5, tst_s6
+                  print_error(s5_error)
+tst_s6:         beq \$gp, \$s6, tst_s7
+                  print_error(s6_error)
+tst_s7:         beq \$gp, \$s7, tst_d
+                  print_error(s6_error)
+tst_d:          nop
+
+                # Validate usage: of \$sp and \$fp  
+
+                lw \$gp, saved_fp
+                beq \$gp, \$fp, skip1
+                  print_error(fp_warning)
+skip1:          lw \$gp,  saved_sp
+                beq \$gp, \$sp, skip2
+                  print_error(sp_warning)
+skip2:          nop
+
+                jr \$ra      
 
   main:         nop      
 EOF
@@ -787,90 +862,12 @@ EOF
   fi 
 
   if [[ -n ${SUB_RETURN_FUNC} ]] ; then 
-    ${SUB_RETURN_FUNC}
+    echo "${SPACE15} ${SUB_RETURN_FUNC}"
   fi
 
   # The value of $v0 should be 
-  echo "${SPACES}  restore_exit_status()"
+  echo "${SPACE15} restore_exit_status()"
   echo "${SPACE15} exit(\$v0)"
-
-
-cat <<-EOF
-                .macro print_error(%label)
-                    # Update this macro to print to stderr
-                    print_si(%label)
-                    sw exit_status, 255
-                .end_macro
-
-                .macro save_exit_status()
-                    sw \$v0, exit_status
-                .end_macro
-
-                .macro restore_exit_status()
-                    lw \$v0, exit_status
-                .end_macro
-
-                .macro save_return_values()
-                    # Save the possible return values: v0, v1, f0, f2
-                    sw \$v0, saved_v0
-                    sw \$v1, saved_v1
-                
-                    la \$gp, saved_double
-                    sdc1 \$f0, 0(\$gp)
-                    sdc1 \$f2, 8(\$gp)
-                .end_macro  
-
-                .macro restore_return_values()
-                    lw \$v0, saved_v0
-                    lw \$v1, saved_v1
-
-                    la \$gp, saved_double
-                    ldc1 \$f0, 0(\$gp)
-                    ldc1 \$f2, 8(\$gp)
-                .end_macro    
-
-
-                .mips validate()
-                   jal validate_sub
-                   save_exit_status()
-                .end_macro
-
-
-validate_sub:   nop     # This is the routine to test the return of subroutine
-
-                li $v0, 0      
-                # Validate that each S registers was restored correctly
-                li \$gp, 0xDead
-                beq \$gp, \$s0, tst_s1
-                  print_error(s0_error)
-tst_s1:         beq \$gp, \$s1, tst_s2
-                  print_error(s1_error)
-tst_s2:         beq \$gp, \$s2, tst_s3
-                  print_error(s2_error)
-tst_s3:         beq \$gp, \$s3, tst_s4
-                  print_error(s3_error)
-tst_s4:         beq \$gp, \$s4, tst_s5
-                  print_error(s4_error)
-tst_s5:         beq \$gp, \$s5, tst_s6
-                  print_error(s5_error)
-tst_s6:         beq \$gp, \$s6, tst_s7
-                  print_error(s6_error)
-tst_s7:         beq \$gp, \$s7, tst_d
-                  print_error(s6_error)
-tst_d:          nop
-
-                # Validate usage: of \$sp and \$fp  
-
-                lw \$gp, saved_fp
-                beq \$gp, \$fp, skip1
-                  print_error(fp_warning)
-skip1:          lw \$gp,  saved_sp
-                beq \$gp, \$sp, skip2
-                  print_error(sp_warning)
-skip2:          nop
-
-                jr \$ra      
-EOF
 
 } > ${BOOTSTRAP_FILE}
 
@@ -925,8 +922,8 @@ function fix_error_messages () {
   # revised the line number
   PWD_STRING=$(pwd)
 
-  sed -e "s|${BOOTSTRAP_FILE}/||"  -e "s|${BOOTSTRAP_DIR}/||" \
-      -e "s/bootstrap.java/${SUB_NAME}.j/"  -e "s|${PWD_STRING}/||" |
+  sed -e "s|${PWD_STRING}/||" -e "s|${BOOTSTRAP_DIR}/||"  \
+      -e "s|bootstrap.${ASM_EXT}|${SUB_NAME}.${LANG_EXT}|" | 
     while IFS= read _line ; do    #handle the shift in the line numbers
       _number=$(sed -n "/error:/s|^.*${SUB_NAME}.j:\([0-9][0-9]*\):.*$|\1|p" <<< $_line)
       if [[ -n "$_number" ]] ; then 
@@ -1215,8 +1212,6 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             ;;
     esac
 done
-[[ -n "${AFTER}" ]] && AFTER="jal validate"
-AFTER="${AFTER}\n${SUB_RETURN_FUNC}"
 
 
 # Process the Command line arguments
@@ -1336,14 +1331,14 @@ if [[ $VERSION == "mips" ]] ; then
   build_mips_source
   execute_mips
   EXIT_STATUS="$?"
-fi |  fix_error_messages
+fi | fix_error_messages
 
 if [[ $VERSION == "java" ]] ; then 
   build_java_source
   execute_java
   EXIT_STATUS="$?"
   cat ${OUTPUT_FILE}
-fi |  fix_error_messages
+fi | fix_error_messages
 
 
 if [[ ${SUMMARIZE} == TRUE ]] ; then
@@ -1351,5 +1346,5 @@ if [[ ${SUMMARIZE} == TRUE ]] ; then
   echo
 fi
 
-return ${EXIT_STATUS}
+exit ${EXIT_STATUS}
 
