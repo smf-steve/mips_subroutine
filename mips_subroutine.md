@@ -4,7 +4,7 @@
     mips_subroutine – execute a MIPS subroutine
 
 ### SYNOPSIS
-    mips_subroutine [-A] [-S] [-L file ... ] [-s] [-r reg_list] [-t] [-v] name [ arg ... ]
+    mips_subroutine [-A] [-S] [-L file ... ] [-s] [-a after] [-b before] name [ arg ... ]
 
 
 ### DESCRIPTION
@@ -30,7 +30,7 @@
     letters, are related to input.  Whereas the second set, which are lower case, are
     related to output.
 
-### Command Line Options
+### COMMAND LINE OPTIONS
     The following options are available to manage the input:
 
       -L : load/link the enumerated files to be part of the final program.  Note specifying 
@@ -50,7 +50,7 @@
       -R type: specifies the return type from the subroutine.  The return value
          of the subroutine is emitted to stdout after the user output. The
          return types include:
-           - none:    no return value is emitted
+           - null:    no return value is emitted
            - integer: an integer value (the value of $v0)
            - long:    a long integer value of (the value of $v1/$v0)
            - string:  a "string" 
@@ -74,31 +74,60 @@
       -r reg_list: dump the registers in the reg_list
         
           A reg_list is a comma separated list of registers numbers names,
-          a range may also be provided.
+          a range may also be provided -- but not implemented yet.
           Examples:
            * -r s0,s2,t1-t5,f2
            * -r 16,18,9-15,f2
 
       -t  : dump the $t0 - $t9 registers 
-      -v  : dump the $v0 and $v1 registers 
 
 
- ### WARNINGS
-     It is expected that the subroutine follows the MIPS convention
-     regarding the restoration of registers. As such, the following
-     messages may appear on stderr.
+### WARNINGS
+    It is expected that the subroutine follows the MIPS convention
+    regarding the restoration of registers. As such, the following
+    messages may appear on stderr.
 
    * Warning: One or more of the S registers were not restored.
    * Warning: The $fp register was not restored.
    * Warning: The $sp register was not restored.
    * Warning: Subroutine did not return properly"
 
+
 ### ENVIRONMENT_VARS
     The following environment variables affect the execution of mips_subroutine:
 
-    MARS_JAR:  The location of the Mars jar file
+    MARS_JAR:          The location of the Mars jar file
+    MIPS_VALIDATE:     TRUE (default)
+    MIPS_SUB_FRAME:    adhoc
+    MIPS_SUB_AFTER:    The default after
+    MIPS_SUB_BEFORE:   The default before
+    MIPS_SUB_RETURN:   The default return value 
 
-    Alternatively the command `mars` must be located on your path.
+### BEFORE and AFTER INSTRUCTIONS
+
+    exit_status
+    restore_return_values()
+    validate() 
+    sw $reg, exit_status
+
+#### ADDITIONAL INTERNAL MACROS
+    To further simply the creation of BEFORE and AFTER instructions a set of interal macros 
+    have been developed.  These macros include (but not limited to)
+
+    | Name     | Description            |
+    |----------|------------------------|
+    | Name     | Description            |
+    | Name     | Description            |
+    | Name     | Description            |
+
+print_banner()
+print_print_error()
+restore_return_values()
+restore_exit_status()
+store_return_values()
+restore_return_values()   |  sw $v0, exit_status)
+
+
 
 ### EXPECTION, LIMITATIONS and BUGS
     If an argument conforms to the syntax of a number, but is malformed,
@@ -107,9 +136,26 @@
        $ mips_subroutine func 4#456
        bash: 4#456: value too great for base (error token is "4#456")
 
-
 ### EXIT STATUS
-    The mips_subroutine exits with the value of $v0 register.
 
+    Upon success, the mips_subroutine exits with the value of $v0.
+    This value, however, is restricted to the range 0..255
+
+    Upon failure, the mips_subroutine exits with the value of 255.
+    Possible failures include:
+      - MARS assemble error:
+        * various syntax errors have been detected
+      - MARS linkage error
+        * one or more subroutines are not defined
+      - MIPS Calling Convention error
+        * one or more of the save registers have not been restored
+        * the stack or frame point have not been restored
+
+    Refer to the stdout for additional information related to errors.  Ideally,
+    such messages should be sent to stderr. However, bother Java and MARS
+    (which is used internally) emit error messages to stdout.
+
+    An "AFTER" routine may modify the original 'exit status' by storing
+    a new value into the variable exit_status (e.g., sw $v0, exit_status)
 
 

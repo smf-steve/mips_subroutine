@@ -2,43 +2,34 @@
 
 # trap 0 cleanup
 
-MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine/
-
+MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine
 MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
-
-
 
 case ${0} in
    *mips_subroutine)
      VERSION="mips"
      LANG_EXT="s"
+     ASM_EXT="java"
      ;;
 
    *j*_subroutine)
      VERSION="java"
      LANG_EXT="j"
+     ASM_EXT="java"
      ;;
 esac
 
-
+EXIT_STATUS=0
 
 ### FILE NAME RELATED ENVIRONMENT VARIABLES
-BOOTSTRAP_DIR=".${VERSION}_subroutine.bootstrap"
+BOOTSTRAP_DIR=".${VERSION}_subroutine"
 mkdir -p ${BOOTSTRAP_DIR}
 
-OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
 ASSEMBLER_FILE="${BOOTSTRAP_DIR}/assembler.output"
+OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
 ERROR_FILE="${BOOTSTRAP_DIR}/bootstrap.errors"
 
-BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/${SUB_NAME}.bootstrap.s"
-BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.s"
-
-BOOTSTRAP_JAVA_FILE="${BOOTSTRAP_DIR}/bootstrap.java"
-
-# the PREFIX to simplify error messages
-PWD_STRING=$(pwd)
-
-
+BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.${ASM_EXT}"
 
 
 cleanup () {
@@ -105,11 +96,21 @@ EOF
 #    The following environment variables affect the execution of mips_subroutine:
 #    MARS:      The command to run MARS
 #    MARS_JAR:  The location of the MARS jar file
+#    MIPS_VALIDATE:
+#    MIPS_SUB_FRAME:    ad-hoc
+#    MIPS_SUB_AFTER:    The default after
+#    MIPS_SUB_BEFORE:   The default before
+#    MIPS_SUB_RETURN:   The default return value 
 ###########################################################################
 
 : ${JAVAC:=$(which javac)}
 : ${JAVA:=$(which java)}
 : ${MARS:=$(which mars)}
+VALIDATE=${MIPS_VALIDATE:-TRUE}
+: ${MIPS_SUB_AFTER:='validate()'}
+: ${MIPS_SUB_BEFORE:=''}
+: ${MIPS_SUB_RETURN:='int'} 
+
 
 [[ -n "${JAVA}" ]] || { echo "java command not found!"; exit 1; }
 
@@ -123,7 +124,7 @@ if [[ -z "${MARS}" ]] ; then
 fi
 
 ###########################################################################
-# ENVIRONMENT VARABLE DESCRIPTONS
+# ENVIRONMENT VARIABLE DESCRIPTIONS
 
 SUB_NAME=""                # The name of the subroutine to be executed
 SUB_NAME_FILE=""           # The default name of the file containing $SUB_NAME
@@ -133,15 +134,14 @@ SUB_CALL=""                # The actual subroutine call, e.g., sub(1, 2, 3)
 FRAME_TYPE="ad-hoc"        # The default frame for subroutine calling
 
 SUB_ARGS_TEXT=""           # A set of arrays to represent the text, type, and value
-SUB_ARGS_TYPES=""          # of the input arguements to the subroutine
+SUB_ARGS_TYPES=""          # of the input arguments to the subroutine
 SUB_ARGS_VALUES=""
 
 SUB_RETURN_VALUE=""        # The value and associated type of the return value
 SUB_RETURN_TYPE="int"      # Revised: update notes
 SUB_RETURN_ARRAY=FALSE
 DEFAULT_SUB_RETURN_ARRAY_COUNT="10"
-
-SUB_RETURN_FUNC='println_register("$v0", $v0)'
+SUB_RETURN_FUNC='println_d($v0)' 
 
 
 PARAM_CONVENTION=
@@ -254,7 +254,7 @@ build_java_source () {
   # include the entry .j files
   # build the main subroutine
   #   call the entry subroutine
-  # close the main subrouine
+  # close the main subroutine
   # close the class
 
   cat <<-EOF
@@ -355,7 +355,7 @@ EOF
   # Following does not work correctly for floating point values
 
   echo 
-  echo "// Make the primary call to the subroutine"
+  echo "    // Make the primary call to the subroutine"
   if [[ ${SUB_RETURN_ARRAY} == "TRUE" ]] ; then
     echo -n "    int[] "
   else
@@ -405,7 +405,7 @@ EOF
 }
 EOF
 
-} > ${BOOTSTRAP_JAVA_FILE}
+} > ${BOOTSTRAP_FILE}
 
 
 ###########################################################################
@@ -469,6 +469,9 @@ EOF
 
 # Create space for register saving
                 .align 2
+exit_status     .word 0
+
+                .align 2
 saved_sp:       .word 0
 saved_fp:       .word 0
 
@@ -506,7 +509,7 @@ function marshal_in_registers () {
   # This function can generate output for both code or documentation purposes
 
   _for="$1"     # _for = "code" | "documentation"
-  [[ -z $_for ]] && { echo internel error; exit 2; }  
+  [[ -z $_for ]] && { echo internal error; exit 2; }  
 
   if [[ $_for == "code" ]] ; then 
     echo ""
@@ -593,7 +596,7 @@ function stage_on_stack () {
   _for="$1"     # _for = "code" | "documentation"
   _first_arg="$2"  # The first argument that is placed on the stack
 
-  [[ -z $_for ]] && { echo internel error; exit 2; }  
+  [[ -z $_for ]] && { echo internal error; exit 2; }  
 
   if [[ $_for == "code" ]] ; then 
     echo ""
@@ -700,14 +703,12 @@ function build_mips_source () {
 EOF
 
 #  Make the appropriate call the subroutine to be tested
-
    # The Pre-call
-
-   # marshal_inputs $t0, $t1, $t2, $t3 
-   # ~push_t_registers~
-   # ~push $fp~
-   # stage_formals $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7
-   # alloc_return                                    # Space for return: alloca_i(4)
+     # marshal_inputs $t0, $t1, $t2, $t3 
+     # ~push_t_registers~
+     # ~push $fp~
+     # stage_formals $t0, $t1, $t2, $t3, $t4, $t5, $t6, $t7
+     # alloc_return                                    # Space for return: alloca_i(4)
 
   # Marshal_inputs
   case ${FRAME_TYPE} in 
@@ -755,7 +756,7 @@ EOF
     if [[ -f "${BEFORE}" ]] ; then 
       cat "${BEFORE}"
     else
-      printf "%b\n" "${BEFORE}"
+      printf "${SPACE15} %b\n" "${BEFORE}"
     fi
   fi 
 
@@ -763,75 +764,81 @@ EOF
   cat <<-EOF
 
                 jal ${SUB_NAME}
-                sw \$v0, saved_v0      # Save this value, it may be needed?
+                unstage_return \$v0
+                save_return_values()
+                save_exit_status()
 
 EOF
 
+  if [[ ${VALIDATE} == "TRUE" ]] ; then
+     echo "${SPACE15} validate()"
+  fi
 
-  cat <<-EOF                
 
-EOF
-
-  # Note that the AFTER routine MUST place the original or revised return value into $v0
-  if [[ -z "${AFTER}" ]] ; then 
-     echo "${SPACE15} jal validate"
-  else
+  if [[ -n "${AFTER}" ]] ; then 
     # --after "call {name} {arg1} {arg2} ...."
     # --after ".include my.macros\n macro(a, b, c, d)"
     # --after "jal {name}"
-    echo
-    echo  "${SPACE15} ############## AFTER ##################"
-    if [[ -f "${AFTER}" ]] ; then
+    if [[ -f "${AFTER}" ]] ; then 
       cat "${AFTER}"
     else
       printf "${SPACE15} %b\n" "${AFTER}"
     fi
-    echo
+  fi 
+
+  if [[ -n ${SUB_RETURN_FUNC} ]] ; then 
+    ${SUB_RETURN_FUNC}
   fi
+
+  # The value of $v0 should be 
+  echo "${SPACES}  restore_exit_status()"
   echo "${SPACE15} exit(\$v0)"
 
 
-
- # Change the following to be a case statement based upon return type
-
-  # Based upon the return type and whether or not we are using the stack
-  # we need to modify the value:
-  #   0 : return via register
-  #   4 : return via a word
-  #   8 : return via a dword
-  stack_return_bytes=0  # the defualt number bytes for a return value;
-
-  # If we are using the stack to return a value
-  # the value of: fp - sp 
-  #   x : return via register, fp should be deadbeaf
-  #   0 : return via a word
-  #   4 : return via a dword
-  frame_return_bytes=0xdeadbeef 
-
-
 cat <<-EOF
-
-
                 .macro print_error(%label)
                     # Update this macro to print to stderr
                     print_si(%label)
+                    sw exit_status, 255
                 .end_macro
 
-validate:       nop     # This is the routine to test the return of subroutine
+                .macro save_exit_status()
+                    sw \$v0, exit_status
+                .end_macro
 
-                # Save the possible return values: v0, v1, f0, f2
-                sw \$v0, saved_v0
-                sw \$v1, saved_v1
+                .macro restore_exit_status()
+                    lw \$v0, exit_status
+                .end_macro
+
+                .macro save_return_values()
+                    # Save the possible return values: v0, v1, f0, f2
+                    sw \$v0, saved_v0
+                    sw \$v1, saved_v1
                 
-                la \$gp, saved_double
-                sdc1 \$f0, 0(\$gp)
-                sdc1 \$f2, 8(\$gp)
+                    la \$gp, saved_double
+                    sdc1 \$f0, 0(\$gp)
+                    sdc1 \$f2, 8(\$gp)
+                .end_macro  
+
+                .macro restore_return_values()
+                    lw \$v0, saved_v0
+                    lw \$v1, saved_v1
+
+                    la \$gp, saved_double
+                    ldc1 \$f0, 0(\$gp)
+                    ldc1 \$f2, 8(\$gp)
+                .end_macro    
 
 
-                print_si(separator)
-                print_si(message)
-                            
+                .mips validate()
+                   jal validate_sub
+                   save_exit_status()
+                .end_macro
 
+
+validate_sub:   nop     # This is the routine to test the return of subroutine
+
+                li $v0, 0      
                 # Validate that each S registers was restored correctly
                 li \$gp, 0xDead
                 beq \$gp, \$s0, tst_s1
@@ -862,16 +869,7 @@ skip1:          lw \$gp,  saved_sp
                   print_error(sp_warning)
 skip2:          nop
 
-                lw \$v0, saved_v0
-                lw \$v1, saved_v1
-
-                la \$gp, saved_double
-                ldc1 \$f0, 0(\$gp)
-                ldc1 \$f2, 8(\$gp)
-
-                unstage_return \$v0
-                ${SUB_RETURN_FUNC}
-                jr \$ra
+                jr \$ra      
 EOF
 
 } > ${BOOTSTRAP_FILE}
@@ -925,8 +923,10 @@ function fix_error_messages () {
   # modify the error message to reflect a clean output
   # Make the file name relative
   # revised the line number
-   sed -e "s|${BOOTSTRAP_JAVA_FILE}/||"  -e "s|${BOOTSTRAP_DIR}/||" \
-       -e "s/bootstrap.java/${SUB_NAME}.j/"  -e "s|${PWD_STRING}/||" |
+  PWD_STRING=$(pwd)
+
+  sed -e "s|${BOOTSTRAP_FILE}/||"  -e "s|${BOOTSTRAP_DIR}/||" \
+      -e "s/bootstrap.java/${SUB_NAME}.j/"  -e "s|${PWD_STRING}/||" |
     while IFS= read _line ; do    #handle the shift in the line numbers
       _number=$(sed -n "/error:/s|^.*${SUB_NAME}.j:\([0-9][0-9]*\):.*$|\1|p" <<< $_line)
       if [[ -n "$_number" ]] ; then 
@@ -946,7 +946,7 @@ execute_java () {
   rebuild_MIPS_OS_Interface
   cp -f ${MIPS_OS_INTERFACE}.class ${BOOTSTRAP_DIR}
   {   
-    javac -classpath ${BOOTSTRAP_DIR} -d ${BOOTSTRAP_DIR} ${BOOTSTRAP_JAVA_FILE} &&
+    javac -classpath ${BOOTSTRAP_DIR} -d ${BOOTSTRAP_DIR} ${BOOTSTRAP_FILE} &&
     java  -cp ${BOOTSTRAP_DIR} ${SUB_NAME} 
   } > ${OUTPUT_FILE} 2>&1
 
@@ -964,11 +964,11 @@ execute_mips () {
   #  - 10000: max instructions to execute to prevent infinite loops
   #  - nc: remove copyright message
   #  - sm: start with global main
-  #  - se1: simulation run: error 1, if linkage error.
-  #  - ae2: assemble run: error 1, if syntax error.
+  #  - se1: simulation run: error 255, if linkage error.
+  #  - ae2: assemble run: error 255, if syntax error.
 
   # Post Processing only needs to be performed in case of a linkage error
-  ${MARS} 10000 nc sm se1 ae1 \
+  ${MARS} 10000 nc sm se255 ae255 \
        ${BOOTSTRAP_FILE} ${LOAD_FILES} 
   # > ${OUTPUT_FILE} 2>&1
 
@@ -1118,15 +1118,19 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
         h)  usage_full
             exit 1
             ;;
-        a)  AFTER="${OPTARG}"
+
+        a)  AFTER="${AFTER}\n${OPTARG}"
             ;;
-        b)  BEFORE="${OPTARG}"
-            ;;
-        L)  LOAD_FILES="${LOAD_FILES} ${OPTARG}"
+        b)  BEFORE="${BEFORE}\n${OPTARG}"
             ;;
 
-        f)  if [ $VERSION == "java" ] ; then
-              echo "Only ad-hoc Frames are supported Java"
+        L)  [[ ! -e ${OPTARG} ]] && { echo "Invalid file name to include: $OPTARG " ; exit 1; }
+            [[ -d ${OPTARG} ]]   && LOAD_FILES="${LOAD_FILES} $(ls $OPTARG/*.${LANG_EXT})"
+            [[ -f ${OPTARG} ]]   && LOAD_FILES="${LOAD_FILES} ${OPTARG}"
+            ;;
+
+        f)  if [[ $VERSION == "java" ]] && [[ ${OPTARG} != 'ad-hoc' ]] ; then
+              echo "Only ad-hoc Frames are supported within Java!"
               exit 1
             fi
             case "${OPTARG}" in
@@ -1134,7 +1138,7 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
                   FRAME_TYPE="${OPTARG}"
                   ;;
                * )
-                  echo "Unknown Frame type"
+                  echo "Unknown Frame Type"
                   exit 1
                   ;;
             esac
@@ -1211,6 +1215,8 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             ;;
     esac
 done
+[[ -n "${AFTER}" ]] && AFTER="jal validate"
+AFTER="${AFTER}\n${SUB_RETURN_FUNC}"
 
 
 # Process the Command line arguments
@@ -1227,14 +1233,15 @@ SUB_NAME_FILE="${SUB_NAME}.${LANG_EXT}"
 SUB_NAME=$(basename ${SUB_NAME})
 
 # Command line related error checking
-[ ${SUB_NAME} != "main" ] || 
+[[ ${SUB_NAME} != "main" ]] || 
      { echo "Error: File name cannot be \"main.${LANG_EXT}\"." ; exit 1; }
 
 for i in ${LOAD_FILES} ; do
-  [ -f ${i} ] || 
+  [[ -f ${i} ]] || 
      { echo "Error: File \"${i}\" does not exist." ; exit 1 ; }
 done
 
+# TODO: Need to updated to allow other return types.
 if [[ ${VERSION} == "mips" ]] ; then 
   grep -q "${SUB_NAME}:" ${LOAD_FILES}  || 
        { echo "Error: Subroutine $SUB_NAME not defined" ; exit 1; }
@@ -1248,7 +1255,7 @@ if [[ ${VERSION} == "java" ]] ; then
 fi
 
 if [[ ${VERSION} == "c" ]] ; then 
-  grep -q "${SUB_NAME}:" ${LOAD_FILES}  || 
+  grep -q " *int ${SUB_NAME} *(" ${LOAD_FILES}  || 
        { echo "Error: Subroutine $SUB_NAME not defined." ; exit 1; }
 fi
 
@@ -1328,13 +1335,13 @@ process_subcommand_args "$@"
 if [[ $VERSION == "mips" ]] ; then 
   build_mips_source
   execute_mips
-  execution_error="$?"
+  EXIT_STATUS="$?"
 fi |  fix_error_messages
 
 if [[ $VERSION == "java" ]] ; then 
   build_java_source
   execute_java
-  execution_error="$?"
+  EXIT_STATUS="$?"
   cat ${OUTPUT_FILE}
 fi |  fix_error_messages
 
@@ -1344,5 +1351,5 @@ if [[ ${SUMMARIZE} == TRUE ]] ; then
   echo
 fi
 
-
+return ${EXIT_STATUS}
 
