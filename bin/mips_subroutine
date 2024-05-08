@@ -1,6 +1,8 @@
 #! /bin/bash
 
 # trap 0 cleanup
+set -o pipefail
+
 
 MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine
 MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
@@ -867,7 +869,7 @@ execute_java () {
   {   
     javac -classpath ${BOOTSTRAP_DIR} -d ${BOOTSTRAP_DIR} ${BOOTSTRAP_FILE} &&
     java  -cp ${BOOTSTRAP_DIR} ${SUB_NAME} 
-  } > ${OUTPUT_FILE} 2>&1
+  } | fix_error_messages
 
   # .java_subroutine.bootstrap/bootstrap.java:7: error: ';' expected
   
@@ -886,10 +888,11 @@ execute_mips () {
   #  - se1: simulation run: error 255, if linkage error.
   #  - ae2: assemble run: error 255, if syntax error.
 
-  # Post Processing only needs to be performed in case of a linkage error
   ${MARS} 10000 nc sm se255 ae255 \
-       ${BOOTSTRAP_FILE} ${LOAD_FILES} 
-  # > ${OUTPUT_FILE} 2>&1
+       ${BOOTSTRAP_FILE} ${LOAD_FILES} | sed '${ /^$/d ; }' | fix_error_messages 
+
+  # MARS prints an extra blank line to stdout on success, remove it
+  # Then fix_error_messags above sed commands removes it
 
   return $?
 }
@@ -1125,20 +1128,18 @@ if [[ $VERSION == "mips" ]] ; then
   build_mips_source
   execute_mips
   EXIT_STATUS="$?"
-fi | fix_error_messages
+fi
 
 if [[ $VERSION == "java" ]] ; then 
   build_java_source
   execute_java
   EXIT_STATUS="$?"
-  cat ${OUTPUT_FILE}
-fi | fix_error_messages
+fi 
 
 
 if [[ ${SUMMARIZE} == TRUE ]] ; then
   subroutine_summary
   echo
 fi
-
 exit ${EXIT_STATUS}
 
