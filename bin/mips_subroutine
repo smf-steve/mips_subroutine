@@ -1,8 +1,6 @@
 #! /bin/bash
 
-# trap 0 cleanup
 set -o pipefail
-
 
 MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine
 MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
@@ -24,23 +22,8 @@ esac
 EXIT_STATUS=0
 
 ### FILE NAME RELATED ENVIRONMENT VARIABLES
-BOOTSTRAP_DIR=".${VERSION}_subroutine"
-mkdir -p ${BOOTSTRAP_DIR}
-
-ASSEMBLER_FILE="${BOOTSTRAP_DIR}/assembler.output"
-OUTPUT_FILE="${BOOTSTRAP_DIR}/bootstrap.output"
-ERROR_FILE="${BOOTSTRAP_DIR}/bootstrap.errors"
-
+BOOTSTRAP_DIR="."
 BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.${ASM_EXT}"
-
-
-cleanup () {
-  #  call on a trap on exit
-  rm -f ${BOOTSTRAP_FILE}
-  rm -f ${OUTPUT_FILE}
-  rm -f ${ASSEMBLER_FILE}
-  rm -f ${ERROR_FILE}
-}
 
 
 function rebuild_MIPS_OS_Interface () {
