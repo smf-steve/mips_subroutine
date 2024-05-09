@@ -1,12 +1,22 @@
-# io.s
-# an additional set of compond macros
+# File: io.s
+#
+# Description: This file contains an additional set of compound macros
+#   to perform I/O functions.
+#
+#   These macros ensure the assocated "v" and "a" registers are preserved.
 # 
 # Print a value that is in a register  (see syscalls.s)
 #   -  print_<type>(%reg)
+#
 # Print the value with a newline at the end..
-#   - println_type
+#   - println_type(%reg)
+#
 # Print an array of values
 #   - println_<type>(%reg, %count)
+#
+# Future: Print the value with a space between each %count digit
+#   - print_<type>(%reg, %null, %count)
+#   - print_ln<type>(%reg, %null, %count)
 
 
 .macro  println_d(%reg)
@@ -252,12 +262,13 @@
              push $t0
              srl $t0, %reg, 31
              print_d($t0)
+             print_ci(' ')
              srl $t0, %reg, 23
              andi $t0, $t0, 0xFF
-             print_x($t0)
+             print_d($t0)
              print_ci(' ')
              andi $t0, %reg, 0x7FFFFF
-             print_x($t2)
+             print_x($t0)
              print_ci(' ')
              print_ci('\n')             
              pop $t0
@@ -291,7 +302,7 @@
 # Register versions:
 # print_x(v)  === print_wx(v)
 #   print_wx(v)  -- don't provide, the default is word
-#   print_hx(v)  -- don't provide, user required to ensure butes 4, 3, are zer
+#   print_hx(v)  -- don't provide, user required to ensure bytes 4, 3,   are zero
 #   print_bx(v)  -- don't provide, user required to ensure bytes 4, 3, 2 are zero
 #
 # Array Versions
