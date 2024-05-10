@@ -112,8 +112,8 @@
         nop                     # read_s: reads a string (%s) from stdin
         push $a0, $a1           #    preserve registers
         nop                     #    marshal arguments
-        move $a0, %reg1         #        &buffer : the address of the buffer
-        move $a1, %reg2         #        num     : the number of bytes to read
+        move $a0, %reg1         #        &buffer: the address of the buffer
+        move $a1, %reg2         #        num:     the number of bytes to read
         li $v0, 8               #    set service number
         syscall                 #    make call to OS
         pop $a0, $a1            #    restore registers
@@ -301,49 +301,49 @@
 # | write (to fd)     | 15   | int ƛ(fd, &buf, int); | bytes read |
 # | close (fd)        | 16   | void ƛ(fd);           |
 
-.macro open(%reg0, %reg1, %reg2)
+.macro open(%reg1, %reg2, %reg3)
         nop                     # open: opens a file 
         push $a0, $a1, $a2      #    preserve registers
         nop                     #    marshal arguements
-        move $a0, %reg0         #        &filename: the address of the filename
-        move $a1, %reg1         #       flags:     readonly (0) writeonly(1), append(9)
-        move $a2, $reg2         #       mode:      ignored
+        move $a0, %reg1         #       &filename: the address of the filename
+        move $a1, %reg2         #       flags:     readonly (0) writeonly(1), append(9)
+        move $a2, %reg3         #       mode:      ignored
         li $v0, 13              #    set service number
         syscall                 #    make call to OS
         pop $a0, $a1, $a2       #    restore registers
         nop                     # open: done
 .end_macro
 
-.macro write
+.macro read(%reg0, %reg1, %reg2)
         nop                     # read: read a file ("fd") putting values into buffer
         push $a0, $a1, $a2      #    preserve registers
         nop                     #    marshal arguments
         move $a0, %reg0         #       fd:        the file descriptor of the file
         move $a1, %reg1         #       &buffer:   the address of the buffer
-        move $a2, $reg2         #       num:       the number of bytes to read
+        move $a2, %reg2         #       num:       the number of bytes to read
         li $v0, 14              #    set service number
         syscall                 #    make call to the OS
         pop $a0, $a1, $a2       #    restore registers
         nop                     #  read: done
 .end_macro
 
-.macro write
+.macro write(%reg0, %reg1, %reg2)
         nop                     # write: write the contents of the buffer to file ("fd")
         push $a0, $a1, $a2      #    preserve registers
         nop                     #    marshal arguments
         move $a0, %reg0         #       fd:        the file descriptor of the file
         move $a1, %reg1         #       &buffer:   the address of the buffer
-        move $a2, $reg2         #       num:       the number of bytes to read
+        move $a2, %reg2         #       num:       the number of bytes to write
         li $v0, 15              #    set service number
         syscall                 #    make call to the OS
         pop $a0, $a1, $a2       #    restore registers
         nop                     # write: done
 .end_macro
 
-.macro close
+.macro close(%reg)
         nop                     # close: close a file
         push $a0                #    preserve registers
-        move $a0, %reg0         #    marshal the fd (file descriptor) of the file
+        move $a0, %reg          #    marshal the fd (file descriptor) of the file
         li $v0, 16              #    set service number
         syscall                 #    make call to the OS
         pop $a0                 #    restore registers
