@@ -226,14 +226,18 @@ EOF
     return A;
   }
 
-  static String separator = "#########################################\n";
-  static String message   = "# Above is the output from your program\n\n";
-
   public static void main(String[] args) {
   
     int index;
+    int exit_status = 0;
 EOF
 
+  ## Issue: if the subroutine does not return a int
+  ##        what is the appropriate value for $v0
+  ##        recall $v0 is used for exit_status
+
+
+  # Marshal the arguments
   for ((i=0; i < ${#SUB_ARGS_TEXT[@]}; i++)) ; do
     _text=${SUB_ARGS_TEXT[$i]}
     _type=${SUB_ARGS_TYPES[$i]}
@@ -277,16 +281,15 @@ EOF
   done
 
   echo 
-  echo "    // Call the BEFORE Routine after args have been staged"
+  echo "    // List of BEFORE actions"
   if [[ -n "${BEFORE}" ]] ; then 
     if [[ -f "${BEFORE}" ]] ; then 
       cat "${BEFORE}"
     else
       printf "%b\n" "${BEFORE}"
     fi
-  else
-    echo "    // -- "
-  fi 
+  fi
+  echo
 
   # Here the only types that should be referenced are
   # int : default
@@ -321,26 +324,23 @@ EOF
     echo -n "    ${SUB_RETURN_TYPE} "
   fi
   echo "\$f0 = \$v0;"
+  echo "exit_status = \$v0;"
 
   echo
-  echo "    // Call the AFTER Routine after args have been staged"  
+  echo "    // List of AFTER actions"  
   if [[ -n "${AFTER}" ]] ; then 
     if [[ -f "${AFTER}" ]] ; then 
       cat "${AFTER}"
     else
       printf "%b\n" "    ${AFTER}"
     fi
-  else
-    echo "    // --"
   fi
+  echo
 
   cat <<EOF
-
-    // This is where the validation step should go.
-    mips.print_s(separator);
-    mips.print_s(message);
-
+    // Print the return value from the routine
     mips.${SUB_RETURN_FUNC};
+    mips.exit(exit_status);
     return;
   }
 }
@@ -424,9 +424,6 @@ saved_double:   .double 1.0
                 .double 1.0
 
 # Create all the output strings
-separator:      .asciiz "#########################################\n"
-message:        .asciiz "# Above is the output from your program\n\n"
-
 sp_warning:     .asciiz "Warning: \$sp was not restored.\n"
 fp_warning:     .asciiz "Warning: \$fp was not restored.\n"
 s0_error:       .asciiz "Error:   \$s0 was not restored.\n"
@@ -771,17 +768,16 @@ EOF
 
   set_registers     # for testing purposes
 
-  # Make the call to the BEFORE after everything has been staged correctly.
+  echo
+  echo "${SPACE15} # List of BEFORE actions"
   if [[ -n "${BEFORE}" ]] ; then 
-    # --before "call {name} {arg1} {arg2} ...."
-    # --before ".include my.macros\n macro(a, b, c, d)"
-    # --before "jal {name}"
     if [[ -f "${BEFORE}" ]] ; then 
       cat "${BEFORE}"
     else
       printf "${SPACE15} %b\n" "${BEFORE}"
     fi
   fi 
+  echo
 
   #     1. Call the "SUB_NAME"  
   cat <<-EOF
@@ -798,20 +794,19 @@ EOF
   fi
 
 
+  echo
+  echo "${SPACE15} # List of AFTER actions"
   if [[ -n "${AFTER}" ]] ; then 
-    # --after "call {name} {arg1} {arg2} ...."
-    # --after ".include my.macros\n macro(a, b, c, d)"
-    # --after "jal {name}"
     if [[ -f "${AFTER}" ]] ; then 
       cat "${AFTER}"
     else
       printf "${SPACE15} %b\n" "${AFTER}"
     fi
   fi 
+  echo
 
-  if [[ -n ${SUB_RETURN_FUNC} ]] ; then 
-    echo "${SPACE15} ${SUB_RETURN_FUNC}"
-  fi
+  echo "${SPACE15} # Print the return value from the subroutine"
+  echo "${SPACE15} ${SUB_RETURN_FUNC}"
 
   # The value of $v0 should be 
   echo "${SPACE15} restore_exit_status()"
@@ -935,7 +930,7 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             esac
             SUB_RETURN_TYPE="int"
             case ${OPTARG} in
-              null     )  SUB_RETURN_FUNC="" ;;
+              null     )  SUB_RETURN_FUNC="println_null()" ;;
               word     )  SUB_RETURN_FUNC='println_register("$v0", $v0)' ;;
 
               int      ) SUB_RETURN_FUNC='println_d($v0)' ;;
