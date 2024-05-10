@@ -18,6 +18,8 @@
 #   - print_<type>(%reg, %null, %count)
 #   - print_ln<type>(%reg, %null, %count)
 
+.macro println_null()
+.end_macro
 
 .macro  println_d(%reg)
         print_d (%reg)
@@ -240,39 +242,104 @@
 
 
 .macro println_register( %name, %reg )
-             .data
-  str:       .asciiz %name
-             .text
-             # if %reg is $v0, which is the default case
-             # the %reg needs to be moved to a safe register
-             move $gp, %reg   
-             print_si(str)
-             print_ci('\t')
-             print_d($gp)
-             print_ci('\t')
-             print_x($gp)
-             print_ci('\t')
-             print_t($gp)
-             print_ci('\n')
-             move %reg, $gp
+            .data
+  str:      .asciiz %name
+            .text
+            # if %reg is $v0, which is the default case
+            # the %reg needs to be moved to a safe register
+            move $gp, %reg   
+            print_si(str)
+            print_ci('\t')
+            print_d($gp)
+            print_ci('\t')
+            print_x($gp)
+            print_ci('\t')
+            print_t($gp)
+            print_ci('\n')
+            move %reg, $gp
 .end_macro
 
+
+# prints the bits in position 31..start-end..0
+.data
+buffer:     .space 32
+.text
+
+.macro print_bits(%reg0, %imm1, %imm2)
+            # $t0  : value
+            # $t1  : start, count
+            # $t2  : end
+            # $t3  : bit, stdout
+
+            # $gp  : point, buff (&buffer)
+            # $t4  : counter
+
+            nop                           # print_bits: 
+            push $t0, $t1, $t2, $t3, $t4
+            move $t0, %reg0               #      value = %reg0
+            li $t1, %imm1                 #      start = %imm1
+            li $t2, %imm2                 #      end   = %imm2
+
+            li $gp, 31
+            sub $gp, $gp, $t1             #      point = 31 - start;
+            sllv $t0, $t0, $gp            #      value = value << point;
+            sub $t1, $t1, $t2             #      count = start - end + 1;
+            addi $t1, $t1, 1
+
+            la $gp, buffer                #      buf     = &buffer;
+            move $t4, $t1                 #      counter = count; 
+      top:  ble $t4, $zero, done          # top: for(; counter > 0 ;) {
+              blt $t0, $zero, alt         #        if (value >= 0) {
+      cons:     li $t3, '0'               #          bit = '0';
+              b fi                        #        } else {
+       alt:     li $t3, '1'               #          bit = '1';
+        fi:   nop                         #        }
+              sb $t3, 0($gp)              #        buff[0] = bit;
+              sll $t0, $t0, 1             #        value = value << 1;
+              subi $t4, $t4, 1            #        counter --;
+              addi $gp, $gp, 1            #        buff ++;
+              b top                       #        continue top;
+      done: nop                           #      }
+            la $gp, buffer                #      buf = &buffer;
+            li $t3, 1                     #      stdout = 1;
+            push $v0
+            write($t3, $gp, $t1)          #      $v0 = mips.write(stdout, buff, count)
+            pop $v0
+            pop $t0, $t1, $t2, $t3, $t4
+.end_macro
 
 .macro println_binary32(%reg)
-             push $t0
-             srl $t0, %reg, 31
-             print_d($t0)
-             print_ci(' ')
-             srl $t0, %reg, 23
-             andi $t0, $t0, 0xFF
-             print_d($t0)
-             print_ci(' ')
-             andi $t0, %reg, 0x7FFFFF
-             print_x($t0)
-             print_ci(' ')
-             print_ci('\n')             
-             pop $t0
+            print_ci('|')
+            print_ci(' ')
+            print_bits(%reg, 31, 31)
+            print_ci(' ')
+            print_ci('|')
+            print_ci(' ')
+            print_bits(%reg, 30, 23)
+            print_ci(' ')
+            print_ci('|')
+            print_ci(' ')
+            print_bits(%reg, 22, 0)
+            print_ci(' ')
+            print_ci('|')
+            print_ci('\n')
 .end_macro
+
+#.macro println_binary32(%reg)
+#             push $t0
+#             srl $t0, %reg, 31
+#             print_d($t0)
+#             print_ci(' ')
+#             srl $t0, %reg, 23
+#             andi $t0, $t0, 0xFF
+#             print_d($t0)
+#             print_ci(' ')
+#             andi $t0, %reg, 0x7FFFFF
+#             print_x($t0)
+#             print_ci('\n')
+#             print_ci('\n')             
+#             pop $t0
+#.end_macro
 
 .macro println_binary32(%reg, %count)
             nop  # println_u
@@ -295,6 +362,8 @@
             b top
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
+
+
 
 # The above, presumes that each value is in a word -- except print_c
 # Consider adding the size of the element if it is for arrays
