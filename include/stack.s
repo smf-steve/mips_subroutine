@@ -12,7 +12,7 @@
 #      - push $reg1 [, $reg2, ... $reg10 ]
 #      - pop  $reg1 [, $reg2, ... $reg10 ]
 #
-#      - alloca_i %bytes 
+#      - allocai %bytes 
 #      - alloca %reg
 #
 # Aggregate macros:
@@ -271,8 +271,8 @@
 ######################
 # Alloca Macros
 
-.macro alloca_i(%val)
-        li $gp, %val
+.macro allocai(%imm)
+        li $gp, %imm
         alloca($gp)   
 .end_macro
 

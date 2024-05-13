@@ -250,11 +250,11 @@ The layout of the frame contains three major areas:
    | Variable | Group  | Register |  Memory  | Expression         |
    |----------|--------|----------|----------|--------------------|
    |    f     | Actual |  ---     |  ?       |  push onto stack   |
-   |    a     | Actual |  $a3     |  ?       |  alloca_i(4)       |
-   |    z     | Actual |  $a2     |  ?       |  alloca_i(4)       |
-   |    y     | Actual |  $a1     |  ?       |  alloca_i(4)       |
-   |    x     | Actual |  $a0     |  ?       |  alloca_i(4)       |
-   |  return  | Return |  $v0     |  ?       |  alloca_i(4)       | * <- $sp
+   |    a     | Actual |  $a3     |  ?       |  allocai(4)        |
+   |    z     | Actual |  $a2     |  ?       |  allocai(4)        |
+   |    y     | Actual |  $a1     |  ?       |  allocai(4)        |
+   |    x     | Actual |  $a0     |  ?       |  allocai(4)        |
+   |  return  | Return |  $v0     |  ?       |  allocai(4)        | * <- $sp
    |----------|--------|----------|----------|--------------------|   
 
 
@@ -317,10 +317,10 @@ The layout of the frame contains three major areas:
                    # The Pre-call
 
                    marshal_inputs({arg0} ... {arg3})
-                   push_t_registers()
+                   push_t_registers
                    push $fp
                    stage_formals({arg0} ... {argN-1})
-                   alloc_return                                    # Space for return: alloca_i(4) -- always
+                   alloc_return                                    # Space for return: allocai(4) -- always
 
                    ####################################################
                    # The Call

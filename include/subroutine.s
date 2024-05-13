@@ -1,4 +1,4 @@
-.macro call( %sub, %arg0)
+.macro call(%sub, %arg0)
   save_state()
   push $a0
   move $a0, %arg0
@@ -7,7 +7,7 @@
   restore_state()
 .end_macro
 
-.macro call( %sub, %arg0, %arg1)
+.macro call(%sub, %arg0, %arg1)
   save_state()
   push $a0 $a1
   move $a0, %arg0

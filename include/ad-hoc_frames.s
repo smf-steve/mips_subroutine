@@ -135,12 +135,12 @@
 #               push_t_registers
 #               push $fp
 #               stage_formals {arg0} ... {argN-1}
-#               alloc_return                                    # Space for return: alloca_i(4)
+#               alloc_return                                    # Space for return: allocai(4)
 #
 #               ####################################################
 #               # The Call
 #
-#               set_frame() 
+#               set_frame()
 #               jal {func}                                      # {retval} = {func}({arg1}..{arg3});
 #               unset_frame()
 #    
@@ -151,7 +151,7 @@
 #               unstage_formals {arg0} ... {argN-1}
 #               pop $fp
 #               pop_t_registers                                 # Restore T registers 
-#               demarshal_return({reg})                         
+#               demarshal_return({reg})                       
 #               ####################################################
 
 
@@ -309,11 +309,11 @@ skip:   nop
 
 
 ## Alloc Return
-.macro alloc_return() 
+.macro alloc_return()
 
 .end_macro
 
-.macro stage_return(%reg) 
+.macro stage_return(%reg)
         move $v0, %reg 
 .end_macro
 

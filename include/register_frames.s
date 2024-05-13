@@ -90,12 +90,12 @@
 #         | Variable | Group  | Register |  Memory  | Expression         |
 #         |----------|--------|----------|----------|--------------------|
 #         |    f     | Actual |  ---     |  ?       |  push onto stack   |
-#         |    a     | Actual |  $a3     |  ?       |  alloca_i(4)       |
-#         |    z     | Actual |  $a2     |  ?       |  alloca_i(4)       |
-#         |    y     | Actual |  $a1     |  ?       |  alloca_i(4)       |
-#         |    x     | Actual |  $a0     |  ?       |  alloca_i(4)       |
-#  $sp->  |  return  | Return |  $v0     |  ?       |  alloca_i(4)       |
-#         ---------------------------------------------------------------
+#         |    a     | Actual |  $a3     |  ?       |  allocai(4)        |
+#         |    z     | Actual |  $a2     |  ?       |  allocai(4)        |
+#         |    y     | Actual |  $a1     |  ?       |  allocai(4)        |
+#         |    x     | Actual |  $a0     |  ?       |  allocai(4)        |
+#  $sp->  |  return  | Return |  $v0     |  ?       |  allocai(4)        |
+#         ----------------------------------------------------------------
 
 
 
@@ -155,12 +155,12 @@
 #               push_t_registers
 #               push $fp
 #               stage_formals {arg0} ... {argN-1}
-#               alloc_return                                    # Space for return: alloca_i(4)
+#               alloc_return                                    # Space for return: allocai(4)
 #
 #               ####################################################
 #               # The Call
 #
-#               set_frame() 
+#               set_frame()
 #               jal {func}                                      # {retval} = {func}({arg1}..{arg3});
 #               unset_frame()
 #    
@@ -171,7 +171,7 @@
 #               unstage_formals {arg0} ... {argN-1}
 #               pop $fp
 #               pop_t_registers                                 # Restore T registers 
-#               demarshal_return({reg})                         
+#               demarshal_return({reg})
 #               ####################################################
 
 
@@ -364,11 +364,11 @@
 .end_macro
 
 ## Alloc Return
-.macro alloc_return() 
+.macro alloc_return()
         push $zero
 .end_macro
 
-.macro stage_return(%reg) 
+.macro stage_return(%reg)
         move $v0, %reg 
 .end_macro
 

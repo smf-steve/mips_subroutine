@@ -135,13 +135,6 @@
         nop                     # The MEM[%reg1] has been updated                    
 .end_macro
 
-#   read_s 8:  Follows semantics of UNIX 'fgets'.  
-#     Reads at most n-1 characters. A newline ('\n') is placed in the last
-#     character read, and then string is then padded with a null character ('\0').
-#     If n = 1, input is ignored, and a null byte written to the buffer.
-#     If n <=1, input is ignored, and nothing is written to the buffer.
-#  
-#  
 
 ######################################################
 # Macros that perform output to stdout

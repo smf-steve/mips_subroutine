@@ -3,97 +3,150 @@
 # Description: This file contains an additional set of compound macros
 #   to perform I/O functions.
 #
-#   These macros ensure the assocated "v" and "a" registers are preserved.
+#   These macros ensure the associated "v" and "a" registers are preserved.
 # 
-# Print a value that is in a register  (see syscalls.s)
-#   -  print_<type>(%reg)
+# Read a number from stdin: read_x and read_t.  (read_d is provided via syscalls.s)
+#   - read_<type>()
 #
-# Print the value with a newline at the end..
-#   - println_type(%reg)
+# Print a value that is in a register  (see syscalls.s)
+#   - print_<type>(%reg)
+#   - print_quote("a quoted string")
+#   - print_binary32(%reg)
+#
+# Print the value with a prefixed with a final newline (\n)
+#   - println_<type>(%reg)
+#   - println_register(%name, %reg)
+#   - println_binary32(%reg)
+#   - print_bits(%reg, %start, %end)  # %start and %end are immediate
+#       * given a 32-bit register, print the bits in the range from %start to %end (%start >= %end)
+#       * 31 ... %start - %end ... 0
 #
 # Print an array of values
 #   - println_<type>(%reg, %count)
+#   - println_binary32(%reg, %count)
+#
 #
 # Future: Print the value with a space between each %count digit
 #   - print_<type>(%reg, %null, %count)
 #   - print_ln<type>(%reg, %null, %count)
 
+
+# Deferring to use the read_d macro within syscalls.s
+# .macro read_d()
+#         nop                             # read_d:
+#         push $a0, $a1, $a2
+#         la $a0, io_line
+#         read_si($a0, 255)
+#         move $a1, $zero
+#         li $a2, 10
+#         i_strtol($a0, $zero, $a2)
+#         pop $a0, $a1, $a2
+#         nop                             # read_d: $v0 contains the integer value
+# .end_macro
+
+.macro read_x()
+        nop                             # read_d:
+        push $a0, $a1, $a2
+        la $a0, io_line
+        move $a1, $zero
+        read_si($a0, 255)
+        li $a2, 16
+        push $a0, $a1, $a2
+        la $gp, buffer
+        i_strtol($gp, $zero, $a2)
+        nop                             # read_d: $v0 contains the integer value
+.end_macro
+
+.macro read_t()
+        nop                             # read_d:
+        push $a0, $a1, $a2
+        la $a0, io_line
+        read_si($a0, 255)
+        move $a1, $zero
+        li $a2, 2
+        la $gp, buffer
+        i_strtol($gp, $zero, $a2)
+        nop                             # read_d: $v0 contains the integer value
+.end_macro
+
+
 .macro println_null()
 .end_macro
 
-.macro  println_d(%reg)
+.macro println_d(%reg)
         print_d (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_di(%imm)
+.macro println_di(%imm)
         print_di(%imm)
         print_ci('\n')
 .end_macro
 
-.macro  println.s(%reg)
+
+.macro println.s(%reg)
         print.s (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println.d(%reg)
+.macro println.d(%reg)
         print.d(%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_f(%reg)
+.macro println_f(%reg)
         print_f (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_s(%reg)
+.macro println_s(%reg)
         print_s (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_si(%label)
+.macro println_si(%label)
         print_si(%label)
         print_ci('\n')
 .end_macro
 
-.macro  println_c(%reg)
+.macro println_c(%reg)
         print_c (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_ci(%imm)
+.macro println_ci(%imm)
         print_ci(%reg)
         print_ci('\n')
 .end_macro
 
 
-.macro  println_x(%reg)
+.macro println_x(%reg)
         print_x (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_xi(%imm)
+.macro println_xi(%imm)
         print_xi(%reg)
         print_ci('\n')
 .end_macro
 
 
-.macro  println_t(%reg)
+.macro println_t(%reg)
         print_t (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_ti(%imm)
+.macro println_ti(%imm)
         print_ti(%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_u(%reg)
+.macro println_u(%reg)
         print_u (%reg)
         print_ci('\n')
 .end_macro
 
-.macro  println_ui(%imm)
+.macro println_ui(%imm)
         print_ui(%imm)
         print_ci('\n')
 .end_macro
@@ -240,25 +293,40 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-
-.macro println_register( %name, %reg )
-            .data
-  str:      .asciiz %name
-            .text
-            # if %reg is $v0, which is the default case
-            # the %reg needs to be moved to a safe register
-            move $gp, %reg   
-            print_si(str)
-            print_ci('\t')
-            print_d($gp)
-            print_ci('\t')
-            print_x($gp)
-            print_ci('\t')
-            print_t($gp)
-            print_ci('\n')
-            move %reg, $gp
+.macro print_quote(%string)
+                .data
+str_label:      .asciiz %string
+                .text
+                print_si(str_label)
 .end_macro
 
+.macro print_register(%name, %reg)
+            print_quote(str)
+            print_ci('\t')
+            print_d($gp)
+            print_ci('\t0x ')
+            print_x($gp)
+            print_ci('\t0b ')
+            print_bits($gp, 31, 28)
+            print_ci(' ')
+            print_bits($gp, 27, 24)
+            print_ci(' ')
+            print_bits($gp, 23, 20)
+            print_ci(' ')
+            print_bits($gp, 19, 16)
+            print_ci(' ')
+            print_bits($gp, 15, 12)
+            print_ci(' ')
+            print_bits($gp, 11, 8)
+            print_ci(' ')
+            print_bits($gp, 7,  4)
+            print_ci(' ')
+            print_bits($gp, 3,  0)
+.end_macro
+
+.macro println_register(%name, %reg)
+            print_register(%name, %reg)
+            print_ci('\n')
 
 # prints the bits in position 31..start-end..0
 .data
@@ -308,38 +376,19 @@ buffer:     .space 32
             pop $t0, $t1, $t2, $t3, $t4
 .end_macro
 
-.macro println_binary32(%reg)
-            print_ci('|')
-            print_ci(' ')
+.macro print_binary32(%reg)
+            print_quote("| ")
             print_bits(%reg, 31, 31)
-            print_ci(' ')
-            print_ci('|')
-            print_ci(' ')
+            print_quote(" | ")
             print_bits(%reg, 30, 23)
-            print_ci(' ')
-            print_ci('|')
-            print_ci(' ')
+            print_quote(" | ")
             print_bits(%reg, 22, 0)
-            print_ci(' ')
-            print_ci('|')
+            print_quote(" |")
+.end_macro
+.macro println_binary32(%reg)
+            print_binary32(%reg)
             print_ci('\n')
 .end_macro
-
-#.macro println_binary32(%reg)
-#             push $t0
-#             srl $t0, %reg, 31
-#             print_d($t0)
-#             print_ci(' ')
-#             srl $t0, %reg, 23
-#             andi $t0, $t0, 0xFF
-#             print_d($t0)
-#             print_ci(' ')
-#             andi $t0, %reg, 0x7FFFFF
-#             print_x($t0)
-#             print_ci('\n')
-#             print_ci('\n')             
-#             pop $t0
-#.end_macro
 
 .macro println_binary32(%reg, %count)
             nop  # println_u
