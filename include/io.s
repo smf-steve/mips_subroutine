@@ -8,18 +8,19 @@
 # Read a number from stdin: read_x and read_t.  (read_d is provided via syscalls.s)
 #   - read_<type>()
 #
-# Print a value that is in a register  (see syscalls.s)
-#   - print_<type>(%reg)
+# Print a value that is in a register  
+#   - print_<type>(%reg)                # (see syscalls.s)
+#   - print_null()
 #   - print_quote("a quoted string")
 #   - print_binary32(%reg)
+#   - print_bits(%reg, %start, %end)  # %start and %end are immediate
+#       * given a 32-bit register, print the bits in the range from %start to %end (%start >= %end)
+#       * 31 ... %start - %end ... 0
 #
 # Print the value with a prefixed with a final newline (\n)
 #   - println_<type>(%reg)
 #   - println_register(%name, %reg)
 #   - println_binary32(%reg)
-#   - print_bits(%reg, %start, %end)  # %start and %end are immediate
-#       * given a 32-bit register, print the bits in the range from %start to %end (%start >= %end)
-#       * 31 ... %start - %end ... 0
 #
 # Print an array of values
 #   - println_<type>(%reg, %count)
@@ -69,8 +70,102 @@
         nop                             # read_d: $v0 contains the integer value
 .end_macro
 
+########################
+.macro print_null()
+.end_macro
 
+.macro print_quote(%string)
+                .data
+str_label:      .asciiz %string
+                .text
+                print_si(str_label)
+.end_macro
+
+.macro print_register(%name, %reg)
+            print_quote(str)
+            print_ci('\t')
+            print_d($gp)
+            print_ci('\t0x ')
+            print_x($gp)
+            print_ci('\t0b ')
+            print_bits($gp, 31, 28)
+            print_ci(' ')
+            print_bits($gp, 27, 24)
+            print_ci(' ')
+            print_bits($gp, 23, 20)
+            print_ci(' ')
+            print_bits($gp, 19, 16)
+            print_ci(' ')
+            print_bits($gp, 15, 12)
+            print_ci(' ')
+            print_bits($gp, 11, 8)
+            print_ci(' ')
+            print_bits($gp, 7,  4)
+            print_ci(' ')
+            print_bits($gp, 3,  0)
+.end_macro
+
+# prints the bits in position 31..start-end..0
+.data
+buffer:     .space 32
+.text
+
+.macro print_bits(%reg0, %imm1, %imm2)
+            # $t0  : value
+            # $t1  : start, count
+            # $t2  : end
+            # $t3  : bit, stdout
+
+            # $gp  : point, buff (&buffer)
+            # $t4  : counter
+
+            nop                           # print_bits: 
+            push $t0, $t1, $t2, $t3, $t4
+            move $t0, %reg0               #      value = %reg0
+            li $t1, %imm1                 #      start = %imm1
+            li $t2, %imm2                 #      end   = %imm2
+
+            li $gp, 31
+            sub $gp, $gp, $t1             #      point = 31 - start;
+            sllv $t0, $t0, $gp            #      value = value << point;
+            sub $t1, $t1, $t2             #      count = start - end + 1;
+            addi $t1, $t1, 1
+
+            la $gp, buffer                #      buf     = &buffer;
+            move $t4, $t1                 #      counter = count; 
+      top:  ble $t4, $zero, done          # top: for(; counter > 0 ;) {
+              blt $t0, $zero, alt         #        if (value >= 0) {
+      cons:     li $t3, '0'               #          bit = '0';
+              b fi                        #        } else {
+       alt:     li $t3, '1'               #          bit = '1';
+        fi:   nop                         #        }
+              sb $t3, 0($gp)              #        buff[0] = bit;
+              sll $t0, $t0, 1             #        value = value << 1;
+              subi $t4, $t4, 1            #        counter --;
+              addi $gp, $gp, 1            #        buff ++;
+              b top                       #        continue top;
+      done: nop                           #      }
+            la $gp, buffer                #      buf = &buffer;
+            li $t3, 1                     #      stdout = 1;
+            push $v0
+            write($t3, $gp, $t1)          #      $v0 = mips.write(stdout, buff, count)
+            pop $v0
+            pop $t0, $t1, $t2, $t3, $t4
+.end_macro
+
+.macro print_binary32(%reg)
+            print_quote("| ")
+            print_bits(%reg, 31, 31)
+            print_quote(" | ")
+            print_bits(%reg, 30, 23)
+            print_quote(" | ")
+            print_bits(%reg, 22, 0)
+            print_quote(" |")
+.end_macro
+
+##########################
 .macro println_null()
+        print_ci('\n')
 .end_macro
 
 .macro println_d(%reg)
@@ -150,6 +245,16 @@
         print_ui(%imm)
         print_ci('\n')
 .end_macro
+
+.macro println_binary32(%reg)
+            print_binary32(%reg)
+            print_ci('\n')
+.end_macro
+
+
+.macro println_register(%name, %reg)
+            print_register(%name, %reg)
+            print_ci('\n')
 
 
 
@@ -293,103 +398,6 @@
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro print_quote(%string)
-                .data
-str_label:      .asciiz %string
-                .text
-                print_si(str_label)
-.end_macro
-
-.macro print_register(%name, %reg)
-            print_quote(str)
-            print_ci('\t')
-            print_d($gp)
-            print_ci('\t0x ')
-            print_x($gp)
-            print_ci('\t0b ')
-            print_bits($gp, 31, 28)
-            print_ci(' ')
-            print_bits($gp, 27, 24)
-            print_ci(' ')
-            print_bits($gp, 23, 20)
-            print_ci(' ')
-            print_bits($gp, 19, 16)
-            print_ci(' ')
-            print_bits($gp, 15, 12)
-            print_ci(' ')
-            print_bits($gp, 11, 8)
-            print_ci(' ')
-            print_bits($gp, 7,  4)
-            print_ci(' ')
-            print_bits($gp, 3,  0)
-.end_macro
-
-.macro println_register(%name, %reg)
-            print_register(%name, %reg)
-            print_ci('\n')
-
-# prints the bits in position 31..start-end..0
-.data
-buffer:     .space 32
-.text
-
-.macro print_bits(%reg0, %imm1, %imm2)
-            # $t0  : value
-            # $t1  : start, count
-            # $t2  : end
-            # $t3  : bit, stdout
-
-            # $gp  : point, buff (&buffer)
-            # $t4  : counter
-
-            nop                           # print_bits: 
-            push $t0, $t1, $t2, $t3, $t4
-            move $t0, %reg0               #      value = %reg0
-            li $t1, %imm1                 #      start = %imm1
-            li $t2, %imm2                 #      end   = %imm2
-
-            li $gp, 31
-            sub $gp, $gp, $t1             #      point = 31 - start;
-            sllv $t0, $t0, $gp            #      value = value << point;
-            sub $t1, $t1, $t2             #      count = start - end + 1;
-            addi $t1, $t1, 1
-
-            la $gp, buffer                #      buf     = &buffer;
-            move $t4, $t1                 #      counter = count; 
-      top:  ble $t4, $zero, done          # top: for(; counter > 0 ;) {
-              blt $t0, $zero, alt         #        if (value >= 0) {
-      cons:     li $t3, '0'               #          bit = '0';
-              b fi                        #        } else {
-       alt:     li $t3, '1'               #          bit = '1';
-        fi:   nop                         #        }
-              sb $t3, 0($gp)              #        buff[0] = bit;
-              sll $t0, $t0, 1             #        value = value << 1;
-              subi $t4, $t4, 1            #        counter --;
-              addi $gp, $gp, 1            #        buff ++;
-              b top                       #        continue top;
-      done: nop                           #      }
-            la $gp, buffer                #      buf = &buffer;
-            li $t3, 1                     #      stdout = 1;
-            push $v0
-            write($t3, $gp, $t1)          #      $v0 = mips.write(stdout, buff, count)
-            pop $v0
-            pop $t0, $t1, $t2, $t3, $t4
-.end_macro
-
-.macro print_binary32(%reg)
-            print_quote("| ")
-            print_bits(%reg, 31, 31)
-            print_quote(" | ")
-            print_bits(%reg, 30, 23)
-            print_quote(" | ")
-            print_bits(%reg, 22, 0)
-            print_quote(" |")
-.end_macro
-.macro println_binary32(%reg)
-            print_binary32(%reg)
-            print_ci('\n')
-.end_macro
-
 .macro println_binary32(%reg, %count)
             nop  # println_u
             # Well what if the args are in the t registers
@@ -411,7 +419,6 @@ buffer:     .space 32
             b top
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
-
 
 
 # The above, presumes that each value is in a word -- except print_c
