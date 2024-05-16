@@ -19,7 +19,26 @@ http://www.github.com/smf-steve/mips_subroutine/macros
 
 ### File: "io.s":
 
-The following macros/methods are provided to extend the basic I/O system calls.
+The following macros/methods are provided to extend the basic I/O system calls.  These
+macros are designed to preserve the values in preexisting register.  
+
+For the following two macros, the value of the "$v0" register contains the value read.
+
+| Name                           | Description                                    |
+|--------------------------------|------------------------------------------------|
+| read_x()                       | reads a hexidecimal value                      |
+| read_t()                       | reads a binary value value                     |
+
+
+| Name                            | Description                                    |
+|---------------------------------|------------------------------------------------|
+| print_null()                    | print nothing                                  |
+| print_quote(%str)               | print a quoted string                          |
+| print_register(%name, %reg)     | print the contents of a register               |
+| print_bits(%reg, %start, %stop) | print a range of bits within a register        |
+| print_binary32(%reg)            | print the bit representation of a binary32     |
+|
+
 Note that ech print operation each forces a newline to be printed after the operation
 is performed
 
@@ -43,17 +62,10 @@ is performed
 | println.s(%reg)                | print a single floating point number           |
 | println.d(%reg)                | print a double floating point number           |
 |                                |                                                |
-| println_null()                 | print nothing, not even a newline              |
 | println_binary32(%reg)         | print a value as a formated binary 32 value    |
 | println_register(%name, %reg)  | printa a register prefixed with a name         |
 |                                |                                                |
-| print_bits(%reg, %imm1, %imm2) | prints a series of bits within a register      |
-
-
-| Name                           | Description                                    |
-|--------------------------------|------------------------------------------------|
-| read_x()                       | reads a hexidecimal value                      |
-| read_t()                       | reads a binary value value                     |
+| println_null()                 | print nothing                                  |
 
 
 

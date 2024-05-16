@@ -7,6 +7,10 @@ INT_INPUT= 36 0x24 044 0o44 "\$" "\$"  "2\#100100" "0b0010 0100"
    # Note that in the Makefile $ and # are special so you need to escape
 STR_INPUT= "a\0" "1234\0"  apple two three four 
 
+TEST_CASES= empty hello_world sum_list summation echo_list binaryReal  # frame_mips
+
+all: ${TEST_CASES}
+
 empty: 
 	mips_subroutine empty
 	java_subroutine empty

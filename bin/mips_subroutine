@@ -3,7 +3,10 @@
 set -o pipefail
 
 MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine
-MIPS_OS_INTERFACE="$MIPS_SUBROUTINE_HOME/include/MIPS_OS_Interface"
+
+MIPS_SUBROUTINE_LIB=${MIPS_SUBROUTINE_HOME}/lib
+MIPS_SUBROUTINE_INCLUDE=${MIPS_SUBROUTINE_HOME}/include
+MIPS_LIBRARY="${MIPS_SUBROUTINE_INCLUDE}/MIPS_library"
 
 case ${0} in
    *mips_subroutine)
@@ -26,9 +29,9 @@ BOOTSTRAP_DIR="."
 BOOTSTRAP_FILE="${BOOTSTRAP_DIR}/bootstrap.${ASM_EXT}"
 
 
-function rebuild_MIPS_OS_Interface () {
+function rebuild_MIPS_library () {
   ( cd $MIPS_SUBROUTINE_HOME/include
-    javac MIPS_OS_Interface.java 
+    javac MIPS_library.java 
   )
 }
 
@@ -114,6 +117,8 @@ fi
 SUB_NAME=""                # The name of the subroutine to be executed
 SUB_NAME_FILE=""           # The default name of the file containing $SUB_NAME
 LOAD_FILES=""              # The list of files to be load
+LIB_FILES="$(echo ${MIPS_SUBROUTINE_LIB}/*.s)"               # A list of library files to be 
+
 SUB_CALL=""                # The actual subroutine call, e.g., sub(1, 2, 3)
 
 FRAME_TYPE="ad-hoc"        # The default frame for subroutine calling
@@ -201,7 +206,7 @@ build_java_source () {
   cat <<-EOF
 
 class ${SUB_NAME} {
-   static MIPS_OS_Interface mips = new MIPS_OS_Interface();
+   static MIPS_library mips = new MIPS_library();
 EOF
 
   # Ensure ensures that the last line in the file terminates 
@@ -841,9 +846,9 @@ execute_java () {
   # Execute java with boot file
   #  - Possible issue with infinite loops
 
-  #cp -f ${MIPS_OS_INTERFACE}.java ${BOOTSTRAP_DIR}
-  rebuild_MIPS_OS_Interface
-  cp -f ${MIPS_OS_INTERFACE}.class ${BOOTSTRAP_DIR}
+  #cp -f ${MIPS_LIBRARY}.java ${BOOTSTRAP_DIR}
+  rebuild_MIPS_library
+  cp -f ${MIPS_LIBRARY}.class ${BOOTSTRAP_DIR}
   {   
     javac -classpath ${BOOTSTRAP_DIR} -d ${BOOTSTRAP_DIR} ${BOOTSTRAP_FILE} &&
     java  -cp ${BOOTSTRAP_DIR} ${SUB_NAME} 
@@ -867,7 +872,7 @@ execute_mips () {
   #  - ae2: assemble run: error 255, if syntax error.
 
   ${MARS} 10000 nc sm se255 ae255 \
-       ${BOOTSTRAP_FILE} ${LOAD_FILES} | sed '${ /^$/d ; }' | fix_error_messages 
+       ${BOOTSTRAP_FILE} ${LOAD_FILES} ${LIB_FILES} | sed '${ /^$/d ; }' | fix_error_messages 
 
   # MARS prints an extra blank line to stdout on success, remove it
   # Then fix_error_messags above sed commands removes it
@@ -930,7 +935,7 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             esac
             SUB_RETURN_TYPE="int"
             case ${OPTARG} in
-              null     )  SUB_RETURN_FUNC="println_null()" ;;
+              null     )  SUB_RETURN_FUNC="print_null()" ;;
               word     )  SUB_RETURN_FUNC='println_register("$v0", $v0)' ;;
 
               int      ) SUB_RETURN_FUNC='println_d($v0)' ;;

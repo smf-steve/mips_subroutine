@@ -1,4 +1,7 @@
 -f frame  
+only ad-hoc or unspecified frame is used within JAVA..
+
+-t, -r, -f : not allowed in Java version
 
 ### NAME
     mips_subroutine – execute a MIPS subroutine

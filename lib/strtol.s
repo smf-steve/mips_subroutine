@@ -1,6 +1,6 @@
         .text
-        .include "include/syscalls.s"
-        .include "include/stack.s"
+        .include "../include/syscalls.s"
+        .include "../include/stack.s"
 
         .text
         .globl i_strtol

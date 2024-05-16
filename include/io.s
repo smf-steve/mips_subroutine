@@ -82,27 +82,27 @@ str_label:      .asciiz %string
 .end_macro
 
 .macro print_register(%name, %reg)
-            print_quote(str)
+            print_quote(%name)
             print_ci('\t')
-            print_d($gp)
-            print_ci('\t0x ')
-            print_x($gp)
-            print_ci('\t0b ')
-            print_bits($gp, 31, 28)
+            print_d(%reg)
+            print_quote("\t0x ")
+            print_x(%reg)
+            print_quote("\t0b ")
+            print_bits(%reg, 31, 28)
             print_ci(' ')
-            print_bits($gp, 27, 24)
+            print_bits(%reg, 27, 24)
             print_ci(' ')
-            print_bits($gp, 23, 20)
+            print_bits(%reg, 23, 20)
             print_ci(' ')
-            print_bits($gp, 19, 16)
+            print_bits(%reg, 19, 16)
             print_ci(' ')
-            print_bits($gp, 15, 12)
+            print_bits(%reg, 15, 12)
             print_ci(' ')
-            print_bits($gp, 11, 8)
+            print_bits(%reg, 11, 8)
             print_ci(' ')
-            print_bits($gp, 7,  4)
+            print_bits(%reg, 7,  4)
             print_ci(' ')
-            print_bits($gp, 3,  0)
+            print_bits(%reg, 3,  0)
 .end_macro
 
 # prints the bits in position 31..start-end..0
@@ -116,9 +116,6 @@ buffer:     .space 32
             # $t2  : end
             # $t3  : bit, stdout
 
-            # $gp  : point, buff (&buffer)
-            # $t4  : counter
-
             nop                           # print_bits: 
             push $t0, $t1, $t2, $t3, $t4
             move $t0, %reg0               #      value = %reg0
@@ -131,26 +128,17 @@ buffer:     .space 32
             sub $t1, $t1, $t2             #      count = start - end + 1;
             addi $t1, $t1, 1
 
-            la $gp, buffer                #      buf     = &buffer;
-            move $t4, $t1                 #      counter = count; 
-      top:  ble $t4, $zero, done          # top: for(; counter > 0 ;) {
+      top:  ble $t1, $zero, done          # top: for(; count > 0 ;) {
               blt $t0, $zero, alt         #        if (value >= 0) {
-      cons:     li $t3, '0'               #          bit = '0';
+      cons:     print_ci('0')             #          print_ci('0');
               b fi                        #        } else {
-       alt:     li $t3, '1'               #          bit = '1';
+       alt:     print_ci('1')             #          print_ci('1');
         fi:   nop                         #        }
-              sb $t3, 0($gp)              #        buff[0] = bit;
               sll $t0, $t0, 1             #        value = value << 1;
-              subi $t4, $t4, 1            #        counter --;
-              addi $gp, $gp, 1            #        buff ++;
+              subi $t1, $t1, 1            #        count --;
               b top                       #        continue top;
       done: nop                           #      }
-            la $gp, buffer                #      buf = &buffer;
-            li $t3, 1                     #      stdout = 1;
-            push $v0
-            write($t3, $gp, $t1)          #      $v0 = mips.write(stdout, buff, count)
-            pop $v0
-            pop $t0, $t1, $t2, $t3, $t4
+            pop $t0, $t1, $t2, $t3
 .end_macro
 
 .macro print_binary32(%reg)
@@ -210,7 +198,7 @@ buffer:     .space 32
 .end_macro
 
 .macro println_ci(%imm)
-        print_ci(%reg)
+        print_ci(%imm)
         print_ci('\n')
 .end_macro
 
@@ -221,7 +209,7 @@ buffer:     .space 32
 .end_macro
 
 .macro println_xi(%imm)
-        print_xi(%reg)
+        print_xi(%imm)
         print_ci('\n')
 .end_macro
 
@@ -232,7 +220,7 @@ buffer:     .space 32
 .end_macro
 
 .macro println_ti(%imm)
-        print_ti(%reg)
+        print_ti(%imm)
         print_ci('\n')
 .end_macro
 
@@ -255,7 +243,7 @@ buffer:     .space 32
 .macro println_register(%name, %reg)
             print_register(%name, %reg)
             print_ci('\n')
-
+.end_macro
 
 
 # Array Macros
@@ -398,7 +386,7 @@ buffer:     .space 32
   done:     pop $t0, $t1, $t2, $t3
 .end_macro
 
-.macro println_binary32(%reg, %count)
+.macro println_binary32(%array, %count)
             nop  # println_u
             # Well what if the args are in the t registers
             # $t0: %arr

@@ -1,4 +1,11 @@
+1. update OS_INTERFACE to include macros
+
+
 # ToDo:
+1. [x] Rework the syscall macros to be register preserving
+       - potentially
+         - move syscalls to xxx
+         - make \_print  that does not preserve registers
 
 1. [ ] Document the flag --frame / -f for frames in mips_subroutine
 
@@ -6,48 +13,24 @@
 
 
 1. [ ] For to mips/include/syscalls.s and Java OS Inteferace: add the  following routines, or move these to io.s
-      - read NextInt, the parse
-   ```java
-   public static void read_x() {
-     $v0 = stdin.nextInt(16);
-   }
 
-   public static void read_o() {
-     $v0 = stdin.nextInt(8);
-   }
-
-   public static void read_t() {
-     $v0 = stdin.nextInt(2);
-   }
-   ```
+Issue with namespace...
+  Students will need to creat strtol....
+  Do I ned to call with this i_strtol, i for internal
 
 1. [ ] Create test case for alloca and test
 
 1. [] Review all examples for different frame support
    -- or just make sure they only use ad-hoc frames
 
+1. [x] Modify println_register to print like
+      - $v0         0           0x0000 0000  0b0000 0000 0000 0000 0000 0000 0000 0000
+      and not
+      - $v0         0           0x00000000  00000000000000000000000000000000
+
 
 
 # Bugs:
-  - The print out of $v0 is
-
-  ```
-  $ mips_subroutine empty
-  #########################################
-  # Above is the output from your program
-
-  $v0         0           0x00000000  00000000000000000000000000000000
-
-  ```
-  it should be
-  ```
-  $ mips_subroutine empty
-  #########################################
-  # Above is the output from your program
-
-  $v0         0           0x0000 0000  0b0000 0000 0000 0000 0000 0000 0000 0000
-
-  ```
 
 dwarf:examples steve$ java_subroutine -R string caesar_cypher hello
 Error: Subroutine caesar_cypher not declared as "public static int".
@@ -64,7 +47,7 @@ dwarf:examples steve$
      - print_c(reg, count)
    - [ ] rewrite print_register
 
-   - add the --after for print out
+   - [x] add the --after for print out
      - print_x
      - print_ax
 
@@ -126,10 +109,8 @@ dwarf:examples steve$
       - ? should the default --after be:  print_register($v0) based upon type
 
 
-
-
 1. Bootstrap
-   - cleanup the post processing, etc. 
+   - [x] cleanup the post processing, etc. 
 
 1. Test Cases
    1. [ ] Write: 
@@ -144,13 +125,14 @@ dwarf:examples steve$
 1. Frames
    1. [ ] Review MIPS convention for subroutine calling...
       - [x] Create a small frames.md document
-      - [x] Write macros for the MIPS approache
+      - [x] Write macros for the MIPS approach
       - [x] Write/validate macros for a Dynamic Frame
-      - [ ] Write a MIPS subroutine that uses these macros
+      - [x] Write a MIPS subroutine that uses these macros
       - [ ] Update the process for Java subroutines
-        * x = (int) fp[4];   -->  lw x, 16($fp)
+        - Deferred: only use ad-hoc frames
+          * x = (int) fp[4];   -->  lw x, 16($fp)
 
-   1. Should the main Java program alway return $v0
+   1. Should the main Java program always return $v0
       - yes, it should be via the exit...
       - it is what it is... 
       - -R defines out to print out the value that is requested
@@ -264,6 +246,7 @@ dwarf:examples steve$
      1. [ ... ]  : array, home,   size + elements
      1. Nope.. not allowed in shell -- ( ... )  : list, heter,   null   
 
+   * modify java_subroutine to allowing array input
 
    * examples
      - mips_subroutine  entry [ one, two, three, \0 ]   
