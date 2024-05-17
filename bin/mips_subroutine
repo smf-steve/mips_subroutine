@@ -86,18 +86,18 @@ EOF
 #    MARS_JAR:  The location of the MARS jar file
 #    MIPS_VALIDATE:
 #    MIPS_SUB_FRAME:    ad-hoc
-#    MIPS_SUB_AFTER:    The default after
-#    MIPS_SUB_BEFORE:   The default before
 #    MIPS_SUB_RETURN:   The default return value 
+#    AFTER:             The initial AFTER
+#    BEFORE:            The initial BEFORE
 ###########################################################################
 
 : ${JAVAC:=$(which javac)}
 : ${JAVA:=$(which java)}
 : ${MARS:=$(which mars)}
 VALIDATE=${MIPS_VALIDATE:-TRUE}
-: ${MIPS_SUB_AFTER:='validate()'}
-: ${MIPS_SUB_BEFORE:=''}
 : ${MIPS_SUB_RETURN:='int'} 
+: ${AFTER:-''}
+: ${BEFORE:-''}
 
 
 [[ -n "${JAVA}" ]] || { echo "java command not found!"; exit 1; }
@@ -141,7 +141,7 @@ ARG_CONVENTION="base"  # The
 
 ARG_STRUCTURE="flat"
   # ="flat"   -- all values are passed as individual arguments
-  # ="array"  -- all values are passed within an array
+  # ="argv"   -- all values are passed within an array
 
 SUMMARIZE="FALSE"
   # emits the subroutine call with its arguments
@@ -166,23 +166,23 @@ function sub_routine_call () {
     _type=${SUB_ARGS_TYPES[$i]}
     _value=${SUB_ARGS_VALUES[$i]}
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
-      _type="string"
+      _type="${ARG_CONVENTION}"
     fi
   
     case ${_type} in 
-      double)
+      float | double )
          echo -n "$_value"
          ;;
   
-      char)
+      char )
          echo -n "'$_value'"
          ;;
 
-      integer)
+      integer | long )
          echo -n "$_value"
          ;;
   
-      string)
+      string )
          echo -n "\"$_text\""
          ;;
     esac
@@ -248,11 +248,11 @@ EOF
     _type=${SUB_ARGS_TYPES[$i]}
     _value=${SUB_ARGS_VALUES[$i]}
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
-      _type="string"
+      _type="${ARG_CONVENTION}"
     fi
   
     case ${_type} in 
-      double)
+      float | double )
          echo "    double \$a$i = $_value;"
          ;;
   
@@ -263,7 +263,11 @@ EOF
       integer)
          echo "    int  \$a$i   = $_value;"
          ;;
-  
+
+      long )
+         echo "    long  \$a$i   = $_value;"
+         ;;
+
       string)
          echo "    String string_$i = \"$_text\";"
          echo "    char \$a$i[] = string2charArray(string_$i);"
@@ -384,26 +388,31 @@ EOF
     _value=${SUB_ARGS_VALUES[$i]}
 
     if [[ ${ARG_CONVENTION} != "base" ]] ; then
-      _type="string"
+      _type="${ARG_CONVENTION}"
     fi
 
     case ${_type} in 
-      double)
+      float | double )
          echo "                .align 3"
          echo "arg_${i}:          .double $_value"
          ;;
 
-      char)
+      char )
          echo "                .align 2"
          echo "arg_${i}:          .byte '$_value' # '$_text'"  #<<<
          ;;
 
-      integer)
+      integer )
          echo "                .align 2"
          echo "arg_${i}:          .word $_value # $_text"
          ;;
 
-      string)
+      long )
+         echo "                .align 3"
+         echo "arg_${i}:          .dword $_value # $_text"
+         ;;
+
+      string )
         echo "                 .align 0"
         echo "arg_${i}:          .asciiz \"$_text\""
         ;;
@@ -459,7 +468,7 @@ function marshal_in_registers () {
     echo "${SPACE15} nop # Marshal the input arguments into the registers"
   fi
 
-  if [[ ${ARG_STRUCTURE} == "array" ]] ; then
+  if [[ ${ARG_STRUCTURE} == "argv" ]] ; then
     if [[ $_for == "code" ]] ; then 
       echo "${SPACE15} li \$a0, ${#SUB_ARGS_TEXT[@]}"
       echo "${SPACE15} la \$a1, argv"
@@ -483,7 +492,7 @@ function marshal_in_registers () {
         _type="string"
       fi   
       case ${_type} in 
-        double)
+        float | double )
           if [[ $i == 1 ]] ; then
             if [[ $_for == "code" ]] ; then 
               echo "${SPACE15} l.d \$f12, arg_${i}${SPACE15} # $_text"
@@ -519,7 +528,30 @@ function marshal_in_registers () {
           fi
           ;;
   
-        string)
+        long )
+          echo "Need to determine how longs are marshaled" ; exit 1 
+          if [[ $i == 1 ]] ; then
+            if [[ $_for == "code" ]] ; then 
+              echo "${SPACE15} lw \$a0, arg_0${SPACE15} # $_text"
+              echo "${SPACE15} lw \$a1, arg_1${SPACE15} # $_text"
+            else
+              echo "${SPACE7} a0-a1:    $_value${SPACE7} # $_text"
+            fi
+          fi
+          if [[ $i == 2 ]] ; then
+            if [[ $_for == "code" ]] ; then 
+              echo "${SPACE15} lw \$a2, arg_0${SPACE15} # $_text"
+              echo "${SPACE15} lw \$a3, arg_1${SPACE15} # $_text"
+            else
+              echo "${SPACE7} a2-a3:    $_value${SPACE7} # $_text"
+            fi
+          fi
+          if [[ $i > 2 ]] ; then
+            break 2;  # break the for loop
+          fi
+          ;;
+
+        string )
           if [[ $_for == "code" ]] ; then 
             echo "${SPACE15} la \$a${i}, arg_${i}${SPACE15} # \"$_text\""
           else
@@ -641,7 +673,8 @@ function build_mips_source () {
                 .include "${MIPS_SUBROUTINE_HOME}/include/stack.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/${FRAME_TYPE}_frames.s"
                 .include "${MIPS_SUBROUTINE_HOME}/include/io.s"
-               .macro print_error(%label)
+
+                .macro print_error(%label)
                     # Update this macro to print to stderr
                     print_si(%label)
                     li \$gp, 255
@@ -890,7 +923,7 @@ if [[ $# == 0 ]] ; then
 fi
 
 #### Process CMD LINE
-while getopts ha:b:L:f:ASsr:R:t option ; do
+while getopts ha:b:L:f:A:R:r:t option ; do
     case "${option}" in
         h)  usage_full
             exit 1
@@ -921,7 +954,36 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             esac
             ;;
 
-        A)  ARG_STRUCTURE="array" ;;
+        A)  case ${OPTARG} in
+              int | integer )
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              long )
+                  echo "Long type not supported" ; exit 1
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              char )
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              string )
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              float )
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              double )
+                  ARG_CONVENTION="${OPTARG}"
+                  ;;
+              argv )
+                  ARG_STRUCTURE="argv"
+                  ARG_CONVENTION="integer"
+                  ;;
+              * )
+                 echo "invalid argument convention type"
+                 exit 1 ;;
+            esac
+            ;;
+
         R)  SUB_RETURN_ARRAY="FALSE"
             case ${OPTARG} in
                *\[*\] ) 
@@ -971,8 +1033,6 @@ while getopts ha:b:L:f:ASsr:R:t option ; do
             fi
             ;;
 
-        S)  ARG_CONVENTION="string" ;;
-        s)  SUMMARIZE="TRUE" ;;
         r)  if [[ $VERSION == mips ]] ; then
                AFTER=${AFTER}'\nprintln_register("$'${OPTARG}'", $'${OPTARG}')'
             fi

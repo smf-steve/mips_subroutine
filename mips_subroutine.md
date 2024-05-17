@@ -36,21 +36,15 @@ only ad-hoc or unspecified frame is used within JAVA..
 ### COMMAND LINE OPTIONS
     The following options are available to manage the input:
 
-      -L : load/link the enumerated files to be part of the final program.  Note specifying 
-           shell globing characters has be used
-           e.g. '*.s" denotes all .s files in the current directory are to be included in the final program.
+      -L {file} : load/link the named directory or files to be part of the final program.  
 
-      -S : converts each argument to a string. The address of each string
-           is then stage in $a0 - $a3, and then onto the stack.
+      -A {type} : defines the base type for ALL input arguments. 
+                  The value of type can be: integer, long, char, string, and double
 
-      -A : pass the input arguments as an heterogeneous array 
-           - $a0: array.length
-           - $a1: &array
+      -A argv   : passes the input arguments as via the standard argv structure.
+                  Implies that the base type of input arguments are strings.
 
-      To mimic the argv structure, use the -A and -S argument together.
-
-
-      -R type: specifies the return type from the subroutine.  The return value
+      -R {type}: specifies the return type from the subroutine.  The return value
          of the subroutine is emitted to stdout after the user output. The
          return types include:
            - null:    no return value is emitted
@@ -60,19 +54,17 @@ only ad-hoc or unspecified frame is used within JAVA..
             
          Future options include:
            - float:   a single precision real number (the value of $f0)
-           - double:  a double precision real number (the value of $f0-$f1()
+           - double:  a double precision real number (the value of $f0-$f1
 
-         Array data types are also support (the value of $v0 is the address of the array)
-         (the value of $v1 needs to be the length of the array)
-           - int[n]:   an array of integers 
-           - long[n]:  an array of long integers
-           - char[n]:  an array of characters
-           - float[n]:  an array of single precision real numbers
-           - double[n]: an array of double precision real numbers
-           (where n is a number)
-
-      -s : summarize the execution of the program 
-           e.g., sub(1,2,3) returns $v0
+         Array data types are also to be supported 
+           - the value of $v0 is the address of the array
+           - the value of -4($v0) holds the actual length of the array
+             - int[n]:   an array of integers 
+             - long[n]:  an array of long integers
+             - char[n]:  an array of characters
+             - float[n]:  an array of single precision real numbers
+             - double[n]: an array of double precision real numbers
+             (where n is a number)
 
       -r reg_list: dump the registers in the reg_list
         
