@@ -7,31 +7,63 @@ only ad-hoc or unspecified frame is used within JAVA..
     mips_subroutine – execute a MIPS subroutine
 
 ### SYNOPSIS
-    mips_subroutine [-A] [-S] [-L file ... ] [-s] [-a after] [-b before] name [ arg ... ]
+    
+  1. mips_subroutine entry [ arg ... ]
+
+     In the simplest form, entry is the name of the subroutine followed by a list of arguments. A file, named
+     'entry.s' must contain the subroutine 'entry'.
+
+  1. mips_subroutine [-L file] [-A type] [-R type] entry [ arg ... ]
+
+     In this extend form, a list of command line options can be provided to load a set of files, to declare
+     the argument type, and to declare the return type.
+
+  1. mips_subroutine [-b before] [-a after] entry [ arg ... ]
+
+     In this extend form, the user can specify a set of instructions to be executed before or after the execution of the 'entry' subroutine.  Such instruction can be useful to prepare the environment or to transform the output of the subroutine.  In the following example, the 'decode' subroutine is called
+     after the execution of the 'encode' subroutine.  In such a case the command line argument should match 
+     the output.
+
+     ```bash
+     $ mips_subroutine -a 'jal decode' encode 43
+     43
+     ```
+
+     Two predefined uses of the '-a' option are provided to simplify the command line.
+
+        * mips_subroutine [-t] [-r reg] entry [ arg ... ]
+
+     In this form,  all the $t0 registers are printed to stdout via the `-t` option.  An number of 
+     specific registers can be printed to stdout via the `-r` option
+
+  1. mips_subroutine [-f frame] entry [ arg ... ]
+
+     In the final form, the structure of the frame can be specified.
+
+
+  Note that all of the above command line options can be used together, and can be presented on the command line in any order, any number of times,
 
 
 ### DESCRIPTION
-    A MIPS subroutine is assemble and execute.  It is presumed that this subroutine is 
-    defined within the file `name`.s, and has a label `name` which serves as the entry 
+    A MIPS subroutine is assembled and executed.  It is presumed that this subroutine is 
+    defined within the file `entry`.s, and has a label `entry` which serves as the entry 
     point for code execution.  The subsequent command line arguments are processed and 
-    then passed to as parameters to the subroutine `name`.
+    then passed as parameters to the subroutine `entry`.  
 
-    Each of the `arg` values are passed to the subroutine the MIPS subroutine convention.
-    That is to say the first 4 arguments are staged in $a0 - $a4 (for integers) or $f12
-    and $f14 (for doubles), and subsequent arguments are positioned on top of the stack.
-    The top of the stack holds the last argument.
+    Each argument's type is interpreted as the simplest type possible, using the duck rule. 
+    That is to say, if it looks like a duck, it is a duck.  As such, the argument "3" is passed 
+    as an integer, the argument "3.2" is passed as a double, and whereas the argument "3\0" is passed 
+    as a string.  The '-A' option can be used to define the type of all input arguments.
 
-    Each argument is converted, by default, to either an integer or a double, whenever
-    possible. Otherwise, the argument is passed as a string. Command line options exist to
-    override this default.
-    
-    After execution, the return value of the subroutine is printed on stdout. It is 
-    presumed that this value is an integer.  Command line options exist to modify the 
-    type of the output value.
+    Each of the `arg` values are then passed to the subroutine using the MIPS subroutine convention.
+    That is to say the first 4 arguments are staged in $a0 - $a4 (for integers) or $f12 and $f14 
+    (for doubles), and subsequent arguments are positioned on top of the stack. 
+    (Three different frame types can be used, which impacts the location of these arguments on
+    he stack.)
 
-    Two sets of command line options are available.  The first set, which are capitalized
-    letters, are related to input.  Whereas the second set, which are lower case, are
-    related to output.
+    After execution, the return value of the subroutine is printed on stdout. It is presumed that 
+    the return value is an integer.  The '-R' option can be used to define the type of the return value.
+
 
 ### COMMAND LINE OPTIONS
     The following options are available to manage the input:
@@ -54,7 +86,7 @@ only ad-hoc or unspecified frame is used within JAVA..
             
          Future options include:
            - float:   a single precision real number (the value of $f0)
-           - double:  a double precision real number (the value of $f0-$f1
+           - double:  a double precision real number (the value of $f0-$f1)
 
          Array data types are also to be supported 
            - the value of $v0 is the address of the array
@@ -65,6 +97,10 @@ only ad-hoc or unspecified frame is used within JAVA..
              - float[n]:  an array of single precision real numbers
              - double[n]: an array of double precision real numbers
              (where n is a number)
+
+      -a {instructions} : execute the instruction after the subroutine
+
+      -b {instructions} : execute the instruction before the subroutine
 
       -r reg_list: dump the registers in the reg_list
         
@@ -78,9 +114,8 @@ only ad-hoc or unspecified frame is used within JAVA..
 
 
 ### WARNINGS
-    It is expected that the subroutine follows the MIPS convention
-    regarding the restoration of registers. As such, the following
-    messages may appear on stderr.
+    It is expected that the subroutine follows the MIPS convention regarding the 
+    restoration of registers. As such, the following messages may appear on stdout.
 
    * Warning: One or more of the S registers were not restored.
    * Warning: The $fp register was not restored.
@@ -93,36 +128,55 @@ only ad-hoc or unspecified frame is used within JAVA..
 
     MARS_JAR:          The location of the Mars jar file
     MIPS_VALIDATE:     TRUE (default)
-    MIPS_SUB_FRAME:    adhoc
-    MIPS_SUB_AFTER:    The default after
-    MIPS_SUB_BEFORE:   The default before
+    MIPS_SUB_FRAME:    ad-hoc
+    MIPS_SUB_AFTER:    The default after instruction
+    MIPS_SUB_BEFORE:   The default before instruction
     MIPS_SUB_RETURN:   The default return value 
 
 ### BEFORE and AFTER INSTRUCTIONS
 
-    exit_status
-    restore_return_values()
-    validate() 
-    sw $reg, exit_status
+    Specific instructions can be injected into the execution environment.  These instructions have
+    full access to the machine and can be used to achieve a large number of results.  As per the name
+    of the command line options, said instructions are executed either just prior to or just after the
+    invocation of the 'entry' subroutine.  
 
-#### ADDITIONAL INTERNAL MACROS
-    To further simply the creation of BEFORE and AFTER instructions a set of interal macros 
-    have been developed.  These macros include (but not limited to)
+    The return values and exit status of the 'entry' subroutine are saved in memory.  This allows 
+    several independent routines to be called in turn to examine the results of the 'entry' subroutine.
+    Saving and restore these values can be performed via the following macros:
 
-    | Name     | Description            |
-    |----------|------------------------|
-    | Name     | Description            |
-    | Name     | Description            |
-    | Name     | Description            |
+      * restore_exist_status()
+      * save_exit_status()
+      * restore_return_values()  
+      * save_return_values()
 
-print_banner()
-print_print_error()
-restore_return_values()
-restore_exit_status()
-store_return_values()
-restore_return_values()   |  sw $v0, exit_status)
+    Consider the following examples:
 
+    * mips_subroutine -b 'li $t0, 42' entry  1 2 3 4
+      - defines the values of the $a0 - $a3 registers with the following values respectively: 1 2 3 4
+      - loads the value of 42 into the $t0 register
+      - executes the entry subroutine
 
+    * mips_subroutine -a 'nmv $a0, $v0\njal post_filter' entry 1 2 3 4
+      - defines the values of the $a0 - $a3 registers with the following values respectively: 1 2 3 4
+      - executes the entry subroutine
+      - moves the return value of 'entry' ($v0) into the $a0 register
+      - executes the post_filter subroutine
+
+    * mips_subroutin -b precondition.txt -a 'move $a0, $v0' -a postfilters.txt entry 1 2 3 4
+      - defines the values of the $a0 - $a3 registers with the following values respectively: 1 2 3 4
+      - executes the code contained within the precondition.txt file
+      - executes the entry subroutine
+      - moves the return value of 'entry' ($v0) into the $a0 register
+      - executes the code contained within the postfilters.txt file, which contents the following instructions
+
+      ```
+      jal prefilter1
+      restore_return_values()  
+      jal prefilter2
+      restore_return_values()  
+      jal prefilter3
+      print_register("$s0", $s0)
+      ```
 
 ### EXPECTION, LIMITATIONS and BUGS
     If an argument conforms to the syntax of a number, but is malformed,
@@ -130,6 +184,23 @@ restore_return_values()   |  sw $v0, exit_status)
 
        $ mips_subroutine func 4#456
        bash: 4#456: value too great for base (error token is "4#456")
+
+### FUTURE WORK
+
+Possible future work includes:
+
+   1. Provide support for array inputs.  For example:
+      ```bash
+      mips_subroutine entry [ 1 22 333 ]
+      ```
+      
+      The internal structure 
+         - $a0 : is the address of the first input argument
+         - -4($a0) : contains the length of the array
+         - 0($a0)  : contains the value of '1'
+         - 4($a0)  : contains the value of '22'
+         - 8($a0)  : contains the value of '333'
+
 
 ### EXIT STATUS
 

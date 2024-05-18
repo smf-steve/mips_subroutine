@@ -96,8 +96,8 @@ EOF
 : ${MARS:=$(which mars)}
 VALIDATE=${MIPS_VALIDATE:-TRUE}
 : ${MIPS_SUB_RETURN:='int'} 
-: ${AFTER:-''}
-: ${BEFORE:-''}
+AFTER=${MIPS_SUB_AFTER:-''}
+BEFORE=${MIPS_SUB_BEFORE:-''}
 
 
 [[ -n "${JAVA}" ]] || { echo "java command not found!"; exit 1; }
