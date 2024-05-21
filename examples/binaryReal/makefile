@@ -36,37 +36,37 @@ test: tags number_commits
 
 test_java: $(J_SRC)
 	@echo $(OUTPUT_CASE1) "<- Correct output"
-	@java_subroutine -L '*.j' -S binaryReal $(ARG_CASE1)
+	@java_subroutine -L . -S binaryReal $(ARG_CASE1)
 	@echo "Correct V0:" $(RESULT_CASE1)
 	@echo
 	@echo $(OUTPUT_CASE2) "<- Correct output"
-	@java_subroutine -L '*.j' -S binaryReal $(ARG_CASE2)
+	@java_subroutine -L . -S binaryReal $(ARG_CASE2)
 	@echo "Correct V0:" $(RESULT_CASE2)
 	@echo
 	@echo $(OUTPUT_CASE3) "<- Correct output"
-	@java_subroutine -L '*.j' -S binaryReal $(ARG_CASE3)
+	@java_subroutine -L . -S binaryReal $(ARG_CASE3)
 	@echo "Correct V0:" $(RESULT_CASE3)
 	@echo
 	@echo $(OUTPUT_CASE4) "<- Correct output"
-	@java_subroutine -L '*.j' -S binaryReal $(ARG_CASE4)
+	@java_subroutine -L . -S binaryReal $(ARG_CASE4)
 	@echo "Correct V0:" $(RESULT_CASE4)
 	@echo
 
 test_mips: $(M_SRC)
 	@echo $(OUTPUT_CASE1) "<- Correct output"
-	@mips_subroutine -L '*.s' -S binaryReal $(ARG_CASE1)
+	@mips_subroutine -L . -S binaryReal $(ARG_CASE1)
 	@echo "Correct V0:" $(RESULT_CASE1)
 	@echo
 	@echo $(OUTPUT_CASE2) "<- Correct output"
-	@mips_subroutine -L '*.s' -S binaryReal $(ARG_CASE2)
+	@mips_subroutine -L . -S binaryReal $(ARG_CASE2)
 	@echo "Correct V0:" $(RESULT_CASE2)
 	@echo
 	@echo $(OUTPUT_CASE3) "<- Correct output"
-	@mips_subroutine -L '*.s' -S binaryReal $(ARG_CASE3)
+	@mips_subroutine -L . -S binaryReal $(ARG_CASE3)
 	@echo "Correct V0:" $(RESULT_CASE3)
 	@echo
 	@echo $(OUTPUT_CASE4) "<- Correct output"
-	@mips_subroutine -L '*.s' -S binaryReal $(ARG_CASE4)
+	@mips_subroutine -L . -S binaryReal $(ARG_CASE4)
 	@echo "Correct V0:" $(RESULT_CASE4)
 	@echo
 
