@@ -1,10 +1,11 @@
 # Makefile to test mips_subroutine
 
 # summation: produces the sum of integers provided as cl arguments
-# echo:  echos the command line arguments, argues are strings
+# echo:  echos the command line arguments, arguements are strings
 
-INT_INPUT= 36 0x24 044 0o44 "\$" "\$"  "2\#100100" "0b0010 0100"
-   # Note that in the Makefile $ and # are special so you need to escape
+INT_INPUT= 36 0x24 044 0o44 "\$$" "\$$"  "2\#100100" "0b0010 0100"
+   # Note that in the Makefile # needs to be escaped
+   # Note that in the Makefile $ needs to be doubled, and then escaped for the shell
 STR_INPUT= "a\0" "1234\0"  apple two three four 
 
 TEST_CASES= empty hello_world sum_list summation echo_list binaryReal  # frame_mips
@@ -30,8 +31,8 @@ summation:
 
 echo_list: echo_list.j echo_list.s
 	# Uses the default frame, i.e., ad-hoc
-	#mips_subroutine -S echo 8 $(INT_INPUT)
-	java_subroutine -S echo 8 $(INT_INPUT)
+	#mips_subroutine -A string echo 8 $(INT_INPUT)
+	java_subroutine -A string echo 8 $(INT_INPUT)
 	#mips_subroutine echo 6 $(STR_INPUT)
 	java_subroutine echo 6 $(STR_INPUT)
 
