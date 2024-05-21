@@ -1,5 +1,4 @@
-.DSstore
 .DS_Store
-.boot*
-.*_subroutine.bootstrap/
+bootstrap.java
+*.class
 
