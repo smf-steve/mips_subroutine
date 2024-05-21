@@ -35,7 +35,7 @@ whole2bin:            # int whole2bin(int number);
                                  #    }
  rover: nop                      #    ;
  apple: ble $t3, $zero, core     #    for ( ; count > 0 ;) {
-          pop($t4)               #      r = mips.pop();
+          pop($t4)               #      r = (Integer) mips.pop();
           print_d($t4)           #      mips.print_d(r);
           subi $t3, $t3, 1       #      count = count - 1;
         b apple                  #      continue apple;

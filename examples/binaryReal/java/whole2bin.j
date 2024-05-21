@@ -12,7 +12,7 @@ public static int whole2bin(int number) {
      mips.push(remainder);
    }
    for (; count > 0; count--) {
-     digit = mips.pop();
+     digit = (Integer) mips.pop();
      mips.print_d(digit);
    }
    return 0;

@@ -87,7 +87,7 @@ public static int whole2bin(int number) {
      mips.push(remainder);
    }
    for (; count > 0; count--) {
-     digit = mips.pop();
+     digit = (Integer) mips.pop();
      mips.print_d(digit);
    }
    return 0;
@@ -140,7 +140,7 @@ public static int binaryReal(char[] arg0, char[] arg1, char[] arg2, char[] arg3)
 
    final int max_bits = 23;
 
-   arg4 = mips.pop(arg4);
+   arg4 = (Integer) mips.pop();
 
    radix      = strtol(arg0, 10);
    sharp      = arg1[0];

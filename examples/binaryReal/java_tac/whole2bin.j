@@ -16,7 +16,7 @@ loop1:  for (; n != 0 ;){
         }
 done1:  ;        
 loop2:  for (; count > 0 ;) {
-          digit = mips.pop();
+          digit = (Integer) mips.pop();
           mips.print_d(digit);
           count --;
           continue loop2;

@@ -9,7 +9,7 @@ public static int binaryReal(char[] arg0, char[] arg1, char[] arg2, char[] arg3)
 
    final int max_bits = 23;
 
-   arg4 = mips.pop(arg4);
+   arg4 = (Integer) mips.pop();
 
    radix      = strtol(arg0, 10);
    sharp      = arg1[0];

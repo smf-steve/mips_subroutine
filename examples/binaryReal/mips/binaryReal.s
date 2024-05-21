@@ -18,7 +18,7 @@ binaryReal: nop         # int binaryReal(char[] arg0, char[] arg1, char[] arg2, 
         # 
         .eqv max_bits 23        #    final int max_bits = 23;
  
-        pop $t4                 #    arg4 = mips.pop(arg4);
+        pop $t4                 #    arg4 = (Integer) mips.pop();
 
         push_s_registers        # Save S registers
         move $t0, $a0           # Marshal input arguments
@@ -29,7 +29,7 @@ binaryReal: nop         # int binaryReal(char[] arg0, char[] arg1, char[] arg2, 
                                 # be located here?
                                 # See notes below.
 
-        # pop $t4               #    arg4 = mips.pop(arg4);
+        # pop $t4               #    arg4 = (Integer) mips.pop();
 
 
         #########################    radix = strtol(arg0, 10);
@@ -113,7 +113,7 @@ binaryReal: nop         # int binaryReal(char[] arg0, char[] arg1, char[] arg2, 
 
 ################################################################
 # Note about the position of:  
-#         pop $t4               #    arg4 = mips.pop(arg4);
+#         pop $t4               #    arg4 = (Integer) mips.pop();
 
 # In your subroutines, you have four or less arguments.
 # As such you don't need to build a frame for each of the 
