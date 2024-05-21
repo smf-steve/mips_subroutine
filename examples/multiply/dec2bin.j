@@ -15,7 +15,7 @@ public  static int dec2bin(int number) {
                }
    end:        ;
    scndloop:   for ( ; count > 0; ) {
-                  d = mips.pop();
+                  d = (Integer) mips.pop();
                   mips.print_d(d);
                   count = count - 1;
                   continue scndloop;
