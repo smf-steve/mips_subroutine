@@ -11,7 +11,7 @@ public static int sum_list( int count, int one, int two, int three) {
   if (count > 2) sum = sum + three;
 
   for (i=3; count > i; i++)  {
-     value = mips.pop();
+     value = (Integer) mips.pop();
      sum = sum + value;
   }
   return sum;
