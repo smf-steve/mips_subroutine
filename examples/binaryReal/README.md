@@ -28,7 +28,7 @@ The program is provided with five command-line arguments that represent the five
 Each of these values are provided to the program as strings. The following demonstrates the use of your program. (Note that program also returns the value of the radix of the input number.)
 
    ```bash
-   $ mips_subroutine -L '*.s' -S binaryReal 10 "#" 198 . 5 
+   $ mips_subroutine -L . -S binaryReal 10 "#" 198 . 5 
    2# 11000110.1
    #########################################
    # Above is the output from your program
