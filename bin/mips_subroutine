@@ -48,7 +48,7 @@ function rebuild_MIPS_library () {
 #
 
 function usage_synopsis () {
-  echo "Usage:  mips_sub [ option ... ] name [ arg ... ]"
+  echo "Usage: $0 [ option ... ] name [ arg ... ]"
 }
 
 function usage_full () {
