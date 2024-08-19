@@ -21,8 +21,8 @@ hello_world:
 	java_subroutine hello_world
 
 sum_list:
-	#mips_subroutine sum_list 8 $(INT_INPUT)    # 36 * 8 = 288
-	java_subroutine sum_list 8 $(INT_INPUT)    # 36 * 8 = 288
+	#mips_subroutine -f ad-hoc sum_list 8 $(INT_INPUT)    # 36 * 8 = 288
+	java_subroutine -f ad-hoc sum_list 8 $(INT_INPUT)    # 36 * 8 = 288
 
 summation: 
 	mips_subroutine summantion 20    # 210
