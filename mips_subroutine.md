@@ -1,7 +1,3 @@
--f frame  
-only ad-hoc or unspecified frame is used within JAVA..
-
--t, -r, -f : not allowed in Java version
 
 ### NAME
     mips_subroutine – execute a MIPS subroutine
@@ -38,7 +34,10 @@ only ad-hoc or unspecified frame is used within JAVA..
 
   1. mips_subroutine [-f frame] entry [ arg ... ]
 
-     In the final form, the structure of the frame can be specified.
+     In the final form, the structure of the frame can be specified.  Their are three frame types:  
+       - adhoc: There is no formal structure defined for a frame.  The stack can be used in an ad-hoc manner.
+       - register: This is default frame structure used by MIPS programs where some information is passed via registers
+       - full:  This frame structure uses the stack to pass all arguments.
 
 
   Note that all of the above command line options can be used together, and can be presented on the command line in any order, any number of times,
@@ -59,7 +58,7 @@ only ad-hoc or unspecified frame is used within JAVA..
     That is to say the first 4 arguments are staged in $a0 - $a4 (for integers) or $f12 and $f14 
     (for doubles), and subsequent arguments are positioned on top of the stack. 
     (Three different frame types can be used, which impacts the location of these arguments on
-    he stack.)
+    the stack.)
 
     After execution, the return value of the subroutine is printed on stdout. It is presumed that 
     the return value is an integer.  The '-R' option can be used to define the type of the return value.
