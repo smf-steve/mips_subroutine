@@ -2,7 +2,7 @@
 
 set -o pipefail
 
-MIPS_SUBROUTINE_HOME=/Users/steve/repositories/mips_subroutine
+: ${MIPS_SUBROUTINE_HOME:=.}
 
 MIPS_SUBROUTINE_LIB=${MIPS_SUBROUTINE_HOME}/lib
 MIPS_SUBROUTINE_INCLUDE=${MIPS_SUBROUTINE_HOME}/include
